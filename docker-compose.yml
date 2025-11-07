@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  # MySQL Database
+  database:
+    image: mysql:8.0
+    container_name: placement_portal_db
+    environment:
+      MYSQL_ROOT_PASSWORD: placement123
+      MYSQL_DATABASE: placement_portal
+      MYSQL_USER: placement_user
+      MYSQL_PASSWORD: placement_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    networks:
+      - placement_network
+    restart: unless-stopped
+
+  # Flask Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: placement_portal_backend
+    environment:
+      - DATABASE_URL=mysql://placement_user:placement_pass@database:3306/placement_portal
+      - SECRET_KEY=your-secret-key-change-in-production
+      - JWT_SECRET_KEY=jwt-secret-string-change-in-production
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - MAIL_SERVER=smtp.gmail.com
+      - MAIL_PORT=587
+      - MAIL_USERNAME=${MAIL_USERNAME}
+      - MAIL_PASSWORD=${MAIL_PASSWORD}
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend/uploads:/app/uploads
+    depends_on:
+      - database
+    networks:
+      - placement_network
+    restart: unless-stopped
+
+  # React Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: placement_portal_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:5000
+    depends_on:
+      - backend
+    networks:
+      - placement_network
+    restart: unless-stopped
+
+  # Redis for caching
+  redis:
+    image: redis:7-alpine
+    container_name: placement_portal_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - placement_network
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+
+networks:
+  placement_network:
+    driver: bridge

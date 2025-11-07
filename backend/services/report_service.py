@@ -4,14 +4,25 @@ from datetime import datetime, timedelta
 import json
 from typing import Dict, List, Any, Optional
 import io
-from reportlab.lib.pagesizes import letter, A4
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
-import xlsxwriter
 from collections import defaultdict
+
+# Try to import optional dependencies
+try:
+    from reportlab.lib.pagesizes import letter, A4
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT
+    REPORTLAB_AVAILABLE = True
+except ImportError:
+    REPORTLAB_AVAILABLE = False
+
+try:
+    import xlsxwriter
+    XLSXWRITER_AVAILABLE = True
+except ImportError:
+    XLSXWRITER_AVAILABLE = False
 
 class ReportService:
     def __init__(self):
@@ -247,6 +258,9 @@ class ReportService:
     
     def export_to_excel(self, data: Dict[str, Any], report_type: str, filename: str = None) -> str:
         """Export report data to Excel format"""
+        if not XLSXWRITER_AVAILABLE:
+            raise Exception("Excel export not available - xlsxwriter not installed")
+        
         try:
             if not filename:
                 timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
@@ -402,6 +416,9 @@ class ReportService:
     
     def export_to_pdf(self, data: Dict[str, Any], report_type: str, filename: str = None) -> str:
         """Export report data to PDF format"""
+        if not REPORTLAB_AVAILABLE:
+            raise Exception("PDF export not available - reportlab not installed")
+        
         try:
             if not filename:
                 timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')

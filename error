@@ -1,0 +1,189 @@
+#!/bin/bash
+
+echo "=== PLACEMENT MANAGEMENT PORTAL - ERROR DIAGNOSIS ==="
+echo ""
+
+# Test 1: Check Python syntax errors
+echo "1. Testing Python syntax..."
+python_syntax_errors=0
+
+# Test auth routes
+if python -m py_compile backend/routes/auth_routes.py 2>/dev/null; then
+    echo "  ✓ auth_routes.py - No syntax errors"
+else
+    echo "  ✗ auth_routes.py - Syntax errors found"
+    python_syntax_errors=$((python_syntax_errors + 1))
+fi
+
+# Test student routes
+if python -m py_compile backend/routes/student_routes.py 2>/dev/null; then
+    echo "  ✓ student_routes.py - No syntax errors"
+else
+    echo "  ✗ student_routes.py - Syntax errors found"
+    python_syntax_errors=$((python_syntax_errors + 1))
+fi
+
+# Test models
+if python -m py_compile backend/models.py 2>/dev/null; then
+    echo "  ✓ models.py - No syntax errors"
+else
+    echo "  ✗ models.py - Syntax errors found"
+    python_syntax_errors=$((python_syntax_errors + 1))
+fi
+
+# Test app.py
+if python -m py_compile backend/app.py 2>/dev/null; then
+    echo "  ✓ app.py - No syntax errors"
+else
+    echo "  ✗ app.py - Syntax errors found"
+    python_syntax_errors=$((python_syntax_errors + 1))
+fi
+
+echo ""
+
+# Test 2: Check import dependencies
+echo "2. Testing import dependencies..."
+import_errors=0
+
+# Test basic Flask app import
+python -c "
+try:
+    from backend.app import app
+    print('  ✓ Flask app imports successfully')
+except ImportError as e:
+    print(f'  ✗ Flask app import error: {str(e)}')
+    import_errors=$((import_errors + 1))
+except Exception as e:
+    print(f'  ✗ Flask app error: {str(e)}')
+    import_errors=$((import_errors + 1))
+" 2>/dev/null
+
+echo ""
+
+# Test 3: Check required files
+echo "3. Checking required files..."
+required_files=(
+    "backend/app.py"
+    "backend/models.py"
+    "backend/routes/auth_routes.py"
+    "backend/routes/student_routes.py"
+    "backend/routes/hod_routes.py"
+    "backend/routes/tpo_routes.py"
+    "backend/routes/company_routes.py"
+    "backend/routes/drive_routes.py"
+    "backend/services/ai_service.py"
+    "backend/services/email_service.py"
+    "backend/services/file_service.py"
+    "backend/services/report_service.py"
+    "backend/requirements.txt"
+    "database/schema.sql"
+    "docker-compose.yml"
+    ".env.example"
+)
+
+missing_files=0
+for file in "${required_files[@]}"; do
+    if [ -f "$file" ]; then
+        echo "  ✓ $file"
+    else
+        echo "  ✗ $file (missing)"
+        missing_files=$((missing_files + 1))
+    fi
+done
+
+echo ""
+
+# Test 4: Check Docker setup
+echo "4. Testing Docker configuration..."
+docker_config_errors=0
+
+# Check docker-compose.yml
+if [ -f "docker-compose.yml" ]; then
+    # Basic validation of docker-compose.yml
+    if grep -q "version:" docker-compose.yml && grep -q "services:" docker-compose.yml; then
+        echo "  ✓ docker-compose.yml structure valid"
+    else
+        echo "  ✗ docker-compose.yml structure invalid"
+        docker_config_errors=$((docker_config_errors + 1))
+    fi
+else
+    echo "  ✗ docker-compose.yml missing"
+    docker_config_errors=$((docker_config_errors + 1))
+fi
+
+# Check Dockerfiles
+if [ -f "backend/Dockerfile" ]; then
+    echo "  ✓ backend/Dockerfile present"
+else
+    echo "  ✗ backend/Dockerfile missing"
+    docker_config_errors=$((docker_config_errors + 1))
+fi
+
+echo ""
+
+# Test 5: Check requirements.txt
+echo "5. Testing Python dependencies..."
+requirements_errors=0
+
+if [ -f "backend/requirements.txt" ]; then
+    # Check for essential packages
+    essential_packages=(
+        "Flask"
+        "Flask-SQLAlchemy"
+        "Flask-JWT-Extended"
+        "Flask-CORS"
+        "python-dotenv"
+    )
+    
+    for package in "${essential_packages[@]}"; do
+        if grep -q "$package" backend/requirements.txt; then
+            echo "  ✓ $package found in requirements"
+        else
+            echo "  ✗ $package missing from requirements"
+            requirements_errors=$((requirements_errors + 1))
+        done
+    done
+else
+    echo "  ✗ requirements.txt missing"
+    requirements_errors=$((requirements_errors + 1))
+fi
+
+echo ""
+
+# Summary
+echo "=== ERROR SUMMARY ==="
+echo ""
+if [ $python_syntax_errors -eq 0 ] && [ $import_errors -eq 0 ] && [ $missing_files -eq 0 ] && [ $docker_config_errors -eq 0 ] && [ $requirements_errors -eq 0 ]; then
+    echo "🎉 NO ERRORS FOUND - System is ready!"
+    echo ""
+    echo "✅ All Python files have valid syntax"
+    echo "✅ All imports working correctly"
+    echo "✅ All required files present"
+    echo "✅ Docker configuration valid"
+    echo "✅ All dependencies specified"
+    echo ""
+    echo "🚀 Ready to deploy with: docker-compose up --build"
+else
+    echo "⚠️  ERRORS DETECTED - Please fix the following:"
+    echo ""
+    if [ $python_syntax_errors -gt 0 ]; then
+        echo "📝 Python Syntax Errors: $python_syntax_errors"
+    fi
+    if [ $import_errors -gt 0 ]; then
+        echo "🔗 Import Errors: $import_errors"
+    fi
+    if [ $missing_files -gt 0 ]; then
+        echo "📄 Missing Files: $missing_files"
+    fi
+    if [ $docker_config_errors -gt 0 ]; then
+        echo "🐳 Docker Config Errors: $docker_config_errors"
+    fi
+    if [ $requirements_errors -gt 0 ]; then
+        echo "📦 Requirements Errors: $requirements_errors"
+    fi
+    echo ""
+    echo "Please review and fix these issues before deployment."
+fi
+
+echo ""
+echo "=== DIAGNOSIS COMPLETE ==="

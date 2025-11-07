@@ -1,12 +1,31 @@
 from flask import Flask
-import openai
 import os
 import json
 import re
 from datetime import datetime
 from typing import Dict, List, Any, Optional
-import PyPDF2
-from pdfminer.high_level import extract_text
+
+# Try to import optional dependencies
+try:
+    import openai
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+    openai = None
+
+try:
+    import PyPDF2
+    PYPDF2_AVAILABLE = True
+except ImportError:
+    PYPDF2_AVAILABLE = False
+    PyPDF2 = None
+
+try:
+    from pdfminer.high_level import extract_text
+    PDFMINER_AVAILABLE = True
+except ImportError:
+    PDFMINER_AVAILABLE = False
+    extract_text = None
 
 class AIService:
     def __init__(self):
@@ -16,11 +35,17 @@ class AIService:
     def init_app(self, app: Flask):
         """Initialize the AI service with Flask app"""
         self.app = app
-        api_key = app.config.get('OPENAI_API_KEY')
-        
-        if api_key:
-            openai.api_key = api_key
-            self.client = openai.OpenAI(api_key=api_key)
+        if OPENAI_AVAILABLE:
+            api_key = app.config.get('OPENAI_API_KEY')
+            if api_key:
+                try:
+                    self.client = openai.OpenAI(api_key=api_key)
+                except Exception as e:
+                    print(f"Failed to initialize OpenAI client: {e}")
+                    self.client = None
+        else:
+            print("OpenAI not available - AI features will be disabled")
+            self.client = None
     
     def is_enabled(self):
         """Check if AI service is enabled"""
@@ -235,13 +260,17 @@ class AIService:
         """Extract text from various file formats"""
         try:
             if file_path.lower().endswith('.pdf'):
-                # Extract text from PDF
-                text = ""
-                with open(file_path, 'rb') as file:
-                    pdf_reader = PyPDF2.PdfReader(file)
-                    for page in pdf_reader.pages:
-                        text += page.extract_text() + "\n"
-                return text
+                if PYPDF2_AVAILABLE:
+                    # Extract text from PDF using PyPDF2
+                    text = ""
+                    with open(file_path, 'rb') as file:
+                        pdf_reader = PyPDF2.PdfReader(file)
+                        for page in pdf_reader.pages:
+                            text += page.extract_text() + "\n"
+                    return text
+                else:
+                    print("PyPDF2 not available - cannot extract PDF text")
+                    return ""
             elif file_path.lower().endswith(('.txt', '.doc', '.docx')):
                 # For simplicity, handle text files
                 with open(file_path, 'r', encoding='utf-8', errors='ignore') as file:

@@ -5,7 +5,6 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity
 from flask_cors import CORS
 from flask_mail import Mail
-import mysql.connector
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -16,8 +15,12 @@ app = Flask(__name__)
 
 # Configuration
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-change-in-production')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'mysql://root:password@localhost/placement_portal')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///placement_portal.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_pre_ping': True,
+    'pool_recycle': 3600,
+}
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'jwt-secret-string')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = 86400  # 24 hours
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
@@ -29,8 +32,14 @@ app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
 app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', 'true').lower() in ['true', 'on', '1']
 app.config['OPENAI_API_KEY'] = os.getenv('OPENAI_API_KEY')
 
+# Import models and routes first to get the db instance
+from models import db
+from models import User, StudentProfile, HodProfile, Department, EmailTemplate, EmailLog, Company, StudentApplication, PlacementDrive, RoundResult, OfferLetter, RecruitmentRound
+
+# Initialize the database with the app
+db.init_app(app)
+
 # Initialize extensions
-db = SQLAlchemy(app)
 jwt = JWTManager(app)
 cors = CORS(app, origins=["http://localhost:3000", "http://localhost:3001"])
 mail = Mail(app)
@@ -40,9 +49,8 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(os.path.join(app.config['UPLOAD_FOLDER'], 'resumes'), exist_ok=True)
 os.makedirs(os.path.join(app.config['UPLOAD_FOLDER'], 'offer_letters'), exist_ok=True)
 os.makedirs(os.path.join(app.config['UPLOAD_FOLDER'], 'reports'), exist_ok=True)
-
-# Import models and routes
-from models import User, StudentProfile, HodProfile, Department, Company, PlacementDrive, RecruitmentRound, StudentApplication, RoundResult, OfferLetter, EmailTemplate, EmailLog, SystemSettings
+os.makedirs(os.path.join(app.config['UPLOAD_FOLDER'], 'company_logos'), exist_ok=True)
+os.makedirs(os.path.join(app.config['UPLOAD_FOLDER'], 'profile_images'), exist_ok=True)
 from routes.auth_routes import auth_bp
 from routes.student_routes import student_bp
 from routes.hod_routes import hod_bp

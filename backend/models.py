@@ -1,10 +1,9 @@
-import os
-from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
-from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime
 import json
+from werkzeug.security import generate_password_hash, check_password_hash
 
-# db will be initialized in app.py
+# Initialize database instance
 db = SQLAlchemy()
 
 class User(db.Model):
@@ -20,11 +19,6 @@ class User(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_login = db.Column(db.DateTime)
     
-    # Relationships
-    student_profile = db.relationship('StudentProfile', backref='user', uselist=False, cascade='all, delete-orphan')
-    hod_profile = db.relationship('HodProfile', backref='user', uselist=False, cascade='all, delete-orphan')
-    created_drives = db.relationship('PlacementDrive', backref='creator', foreign_keys='PlacementDrive.created_by')
-    
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
     
@@ -38,8 +32,7 @@ class User(db.Model):
             'role': self.role,
             'is_active': self.is_active,
             'is_approved': self.is_approved,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'last_login': self.last_login.isoformat() if self.last_login else None
+            'created_at': self.created_at.isoformat() if self.created_at else None
         }
 
 class Department(db.Model):
@@ -52,10 +45,6 @@ class Department(db.Model):
     hod_user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # Relationships
-    student_profiles = db.relationship('StudentProfile', backref='department', foreign_keys='StudentProfile.department_id')
-    hod_profiles = db.relationship('HodProfile', backref='department', foreign_keys='HodProfile.department_id')
     
     def to_dict(self):
         return {
@@ -91,10 +80,6 @@ class StudentProfile(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Relationships
-    applications = db.relationship('StudentApplication', backref='student', foreign_keys='StudentApplication.student_id', cascade='all, delete-orphan')
-    offer_letters = db.relationship('OfferLetter', backref='student', foreign_keys='OfferLetter.student_id')
-    
     def get_skills(self):
         return json.loads(self.skills) if self.skills else []
     
@@ -121,7 +106,6 @@ class StudentProfile(db.Model):
             'first_name': self.first_name,
             'last_name': self.last_name,
             'department_id': self.department_id,
-            'department': self.department.to_dict() if self.department else None,
             'batch_year': self.batch_year,
             'cgpa': float(self.cgpa) if self.cgpa else None,
             'phone': self.phone,
@@ -134,8 +118,7 @@ class StudentProfile(db.Model):
             'experience': self.get_experience(),
             'education': self.get_education(),
             'is_active': self.is_active,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+            'created_at': self.created_at.isoformat() if self.created_at else None
         }
 
 class HodProfile(db.Model):
@@ -152,7 +135,6 @@ class HodProfile(db.Model):
     experience_years = db.Column(db.Integer, default=0)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     def to_dict(self):
         return {
@@ -162,250 +144,11 @@ class HodProfile(db.Model):
             'first_name': self.first_name,
             'last_name': self.last_name,
             'department_id': self.department_id,
-            'department': self.department.to_dict() if self.department else None,
             'phone': self.phone,
             'qualification': self.qualification,
             'experience_years': self.experience_years,
             'is_active': self.is_active,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
-        }
-
-class Company(db.Model):
-    __tablename__ = 'companies'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(200), nullable=False)
-    industry = db.Column(db.String(100))
-    website = db.Column(db.String(255))
-    description = db.Column(db.Text)
-    contact_person = db.Column(db.String(100))
-    contact_email = db.Column(db.String(255))
-    contact_phone = db.Column(db.String(15))
-    address = db.Column(db.Text)
-    logo = db.Column(db.String(255))
-    is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Relationships
-    placement_drives = db.relationship('PlacementDrive', backref='company', cascade='all, delete-orphan')
-    offer_letters = db.relationship('OfferLetter', backref='company')
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'name': self.name,
-            'industry': self.industry,
-            'website': self.website,
-            'description': self.description,
-            'contact_person': self.contact_person,
-            'contact_email': self.contact_email,
-            'contact_phone': self.contact_phone,
-            'address': self.address,
-            'logo': self.logo,
-            'is_active': self.is_active,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
-        }
-
-class PlacementDrive(db.Model):
-    __tablename__ = 'placement_drives'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    company_id = db.Column(db.Integer, db.ForeignKey('companies.id'), nullable=False)
-    title = db.Column(db.String(200), nullable=False)
-    job_description = db.Column(db.Text)
-    job_role = db.Column(db.String(100), nullable=False)
-    eligibility_criteria = db.Column(db.Text)
-    required_skills = db.Column(db.Text)  # JSON array
-    package_offered = db.Column(db.Numeric(10, 2))
-    location = db.Column(db.String(100))
-    drive_date = db.Column(db.Date)
-    application_deadline = db.Column(db.Date)
-    status = db.Column(db.Enum('draft', 'active', 'closed', 'cancelled'), default='draft')
-    max_applicants = db.Column(db.Integer)
-    min_cgpa = db.Column(db.Numeric(3, 2))
-    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Relationships
-    recruitment_rounds = db.relationship('RecruitmentRound', backref='placement_drive', cascade='all, delete-orphan')
-    student_applications = db.relationship('StudentApplication', backref='placement_drive', cascade='all, delete-orphan')
-    
-    def get_required_skills(self):
-        return json.loads(self.required_skills) if self.required_skills else []
-    
-    def set_required_skills(self, skills):
-        self.required_skills = json.dumps(skills)
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'company_id': self.company_id,
-            'company': self.company.to_dict() if self.company else None,
-            'title': self.title,
-            'job_description': self.job_description,
-            'job_role': self.job_role,
-            'eligibility_criteria': self.eligibility_criteria,
-            'required_skills': self.get_required_skills(),
-            'package_offered': float(self.package_offered) if self.package_offered else None,
-            'location': self.location,
-            'drive_date': self.drive_date.isoformat() if self.drive_date else None,
-            'application_deadline': self.application_deadline.isoformat() if self.application_deadline else None,
-            'status': self.status,
-            'max_applicants': self.max_applicants,
-            'min_cgpa': float(self.min_cgpa) if self.min_cgpa else None,
-            'created_by': self.created_by,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
-        }
-
-class RecruitmentRound(db.Model):
-    __tablename__ = 'recruitment_rounds'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    drive_id = db.Column(db.Integer, db.ForeignKey('placement_drives.id'), nullable=False)
-    round_name = db.Column(db.String(100), nullable=False)
-    round_type = db.Column(db.Enum('screening', 'written', 'technical', 'hr', 'final'), nullable=False)
-    description = db.Column(db.Text)
-    duration_minutes = db.Column(db.Integer)
-    max_marks = db.Column(db.Numeric(5, 2))
-    is_elimination = db.Column(db.Boolean, default=True)
-    scheduled_date = db.Column(db.DateTime)
-    venue = db.Column(db.String(200))
-    instructions = db.Column(db.Text)
-    order_sequence = db.Column(db.Integer, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # Relationships
-    round_results = db.relationship('RoundResult', backref='recruitment_round', cascade='all, delete-orphan')
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'drive_id': self.drive_id,
-            'round_name': self.round_name,
-            'round_type': self.round_type,
-            'description': self.description,
-            'duration_minutes': self.duration_minutes,
-            'max_marks': float(self.max_marks) if self.max_marks else None,
-            'is_elimination': self.is_elimination,
-            'scheduled_date': self.scheduled_date.isoformat() if self.scheduled_date else None,
-            'venue': self.venue,
-            'instructions': self.instructions,
-            'order_sequence': self.order_sequence,
             'created_at': self.created_at.isoformat() if self.created_at else None
-        }
-
-class StudentApplication(db.Model):
-    __tablename__ = 'student_applications'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    student_id = db.Column(db.Integer, db.ForeignKey('student_profiles.id'), nullable=False)
-    drive_id = db.Column(db.Integer, db.ForeignKey('placement_drives.id'), nullable=False)
-    application_status = db.Column(db.Enum('applied', 'under_review', 'shortlisted', 'rejected', 'selected', 'offer_sent', 'offer_accepted'), default='applied')
-    applied_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    notes = db.Column(db.Text)
-    ai_score = db.Column(db.Numeric(5, 2))
-    resume_extracted_data = db.Column(db.Text)  # JSON data
-    
-    # Relationships
-    round_results = db.relationship('RoundResult', backref='student_application', cascade='all, delete-orphan')
-    offer_letters = db.relationship('OfferLetter', backref='application')
-    
-    def get_resume_extracted_data(self):
-        return json.loads(self.resume_extracted_data) if self.resume_extracted_data else {}
-    
-    def set_resume_extracted_data(self, data):
-        self.resume_extracted_data = json.dumps(data)
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'student_id': self.student_id,
-            'student': self.student.to_dict() if self.student else None,
-            'drive_id': self.drive_id,
-            'placement_drive': self.placement_drive.to_dict() if self.placement_drive else None,
-            'application_status': self.application_status,
-            'applied_at': self.applied_at.isoformat() if self.applied_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
-            'notes': self.notes,
-            'ai_score': float(self.ai_score) if self.ai_score else None,
-            'resume_extracted_data': self.get_resume_extracted_data()
-        }
-
-class RoundResult(db.Model):
-    __tablename__ = 'round_results'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    application_id = db.Column(db.Integer, db.ForeignKey('student_applications.id'), nullable=False)
-    round_id = db.Column(db.Integer, db.ForeignKey('recruitment_rounds.id'), nullable=False)
-    student_id = db.Column(db.Integer, db.ForeignKey('student_profiles.id'), nullable=False)
-    status = db.Column(db.Enum('pending', 'passed', 'failed', 'absent'), default='pending')
-    marks_obtained = db.Column(db.Numeric(5, 2))
-    feedback = db.Column(db.Text)
-    evaluated_by = db.Column(db.Integer, db.ForeignKey('users.id'))
-    evaluated_at = db.Column(db.DateTime)
-    next_round_eligible = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Relationships
-    evaluator = db.relationship('User', foreign_keys=[evaluated_by])
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'application_id': self.application_id,
-            'round_id': self.round_id,
-            'recruitment_round': self.recruitment_round.to_dict() if self.recruitment_round else None,
-            'student_id': self.student_id,
-            'status': self.status,
-            'marks_obtained': float(self.marks_obtained) if self.marks_obtained else None,
-            'feedback': self.feedback,
-            'evaluated_by': self.evaluated_by,
-            'evaluator': self.evaluator.to_dict() if self.evaluator else None,
-            'evaluated_at': self.evaluated_at.isoformat() if self.evaluated_at else None,
-            'next_round_eligible': self.next_round_eligible,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
-        }
-
-class OfferLetter(db.Model):
-    __tablename__ = 'offer_letters'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    application_id = db.Column(db.Integer, db.ForeignKey('student_applications.id'), nullable=False)
-    student_id = db.Column(db.Integer, db.ForeignKey('student_profiles.id'), nullable=False)
-    company_id = db.Column(db.Integer, db.ForeignKey('companies.id'), nullable=False)
-    offer_letter_file = db.Column(db.String(255))
-    salary_package = db.Column(db.Numeric(10, 2), nullable=False)
-    position_title = db.Column(db.String(100), nullable=False)
-    start_date = db.Column(db.Date)
-    offer_status = db.Column(db.Enum('sent', 'accepted', 'rejected', 'withdrawn'), default='sent')
-    sent_date = db.Column(db.DateTime, default=datetime.utcnow)
-    response_date = db.Column(db.DateTime)
-    additional_terms = db.Column(db.Text)
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'application_id': self.application_id,
-            'student_id': self.student_id,
-            'student': self.student.to_dict() if self.student else None,
-            'company_id': self.company_id,
-            'company': self.company.to_dict() if self.company else None,
-            'offer_letter_file': self.offer_letter_file,
-            'salary_package': float(self.salary_package),
-            'position_title': self.position_title,
-            'start_date': self.start_date.isoformat() if self.start_date else None,
-            'offer_status': self.offer_status,
-            'sent_date': self.sent_date.isoformat() if self.sent_date else None,
-            'response_date': self.response_date.isoformat() if self.response_date else None,
-            'additional_terms': self.additional_terms
         }
 
 class EmailTemplate(db.Model):
@@ -415,8 +158,9 @@ class EmailTemplate(db.Model):
     template_name = db.Column(db.String(100), unique=True, nullable=False)
     subject = db.Column(db.String(255), nullable=False)
     content = db.Column(db.Text, nullable=False)
-    template_type = db.Column(db.Enum('application_received', 'round_scheduled', 'result_announced', 'offer_sent', 'offer_accepted', 'rejection'), nullable=False)
+    template_type = db.Column(db.String(50), default='general')
     is_ai_generated = db.Column(db.Boolean, default=False)
+    is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -428,8 +172,8 @@ class EmailTemplate(db.Model):
             'content': self.content,
             'template_type': self.template_type,
             'is_ai_generated': self.is_ai_generated,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+            'is_active': self.is_active,
+            'created_at': self.created_at.isoformat() if self.created_at else None
         }
 
 class EmailLog(db.Model):
@@ -437,43 +181,234 @@ class EmailLog(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     recipient_email = db.Column(db.String(255), nullable=False)
+    recipient_user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     subject = db.Column(db.String(255), nullable=False)
     content = db.Column(db.Text, nullable=False)
-    sent_at = db.Column(db.DateTime, default=datetime.utcnow)
-    status = db.Column(db.Enum('sent', 'failed', 'bounced'), default='sent')
     template_id = db.Column(db.Integer, db.ForeignKey('email_templates.id'))
-    recipient_user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
-    
-    # Relationships
-    template = db.relationship('EmailTemplate', foreign_keys=[template_id])
-    recipient_user = db.relationship('User', foreign_keys=[recipient_user_id])
+    status = db.Column(db.String(20), default='pending')  # pending, sent, failed
+    sent_at = db.Column(db.DateTime, default=datetime.utcnow)
+    error_message = db.Column(db.Text)
     
     def to_dict(self):
         return {
             'id': self.id,
             'recipient_email': self.recipient_email,
+            'recipient_user_id': self.recipient_user_id,
             'subject': self.subject,
             'content': self.content,
-            'sent_at': self.sent_at.isoformat() if self.sent_at else None,
-            'status': self.status,
             'template_id': self.template_id,
-            'recipient_user_id': self.recipient_user_id
+            'status': self.status,
+            'sent_at': self.sent_at.isoformat() if self.sent_at else None,
+            'error_message': self.error_message
         }
 
-class SystemSettings(db.Model):
-    __tablename__ = 'system_settings'
+class Company(db.Model):
+    __tablename__ = 'companies'
     
     id = db.Column(db.Integer, primary_key=True)
-    setting_key = db.Column(db.String(100), unique=True, nullable=False)
-    setting_value = db.Column(db.Text)
+    name = db.Column(db.String(200), nullable=False)
+    industry = db.Column(db.String(100))
+    website = db.Column(db.String(255))
     description = db.Column(db.Text)
+    logo = db.Column(db.String(255))
+    contact_person = db.Column(db.String(100))
+    contact_email = db.Column(db.String(255))
+    contact_phone = db.Column(db.String(20))
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'industry': self.industry,
+            'website': self.website,
+            'description': self.description,
+            'logo': self.logo,
+            'contact_person': self.contact_person,
+            'contact_email': self.contact_email,
+            'contact_phone': self.contact_phone,
+            'is_active': self.is_active,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+class PlacementDrive(db.Model):
+    __tablename__ = 'placement_drives'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, db.ForeignKey('companies.id'), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    job_role = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text)
+    requirements = db.Column(db.Text)
+    min_cgpa = db.Column(db.Numeric(3, 2))
+    max_backlogs = db.Column(db.Integer, default=0)
+    required_skills = db.Column(db.Text)  # JSON array
+    salary_package_min = db.Column(db.Numeric(10, 2))
+    salary_package_max = db.Column(db.Numeric(10, 2))
+    location = db.Column(db.String(200))
+    drive_date = db.Column(db.Date)
+    application_deadline = db.Column(db.Date)
+    status = db.Column(db.String(20), default='draft')  # draft, active, closed
+    total_vacancies = db.Column(db.Integer)
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def get_required_skills(self):
+        return json.loads(self.required_skills) if self.required_skills else []
+    
+    def set_required_skills(self, skills):
+        self.required_skills = json.dumps(skills)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'company_id': self.company_id,
+            'title': self.title,
+            'job_role': self.job_role,
+            'description': self.description,
+            'requirements': self.requirements,
+            'min_cgpa': float(self.min_cgpa) if self.min_cgpa else None,
+            'max_backlogs': self.max_backlogs,
+            'required_skills': self.get_required_skills(),
+            'salary_package_min': float(self.salary_package_min) if self.salary_package_min else None,
+            'salary_package_max': float(self.salary_package_max) if self.salary_package_max else None,
+            'location': self.location,
+            'drive_date': self.drive_date.isoformat() if self.drive_date else None,
+            'application_deadline': self.application_deadline.isoformat() if self.application_deadline else None,
+            'status': self.status,
+            'total_vacancies': self.total_vacancies,
+            'created_by': self.created_by,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+class StudentApplication(db.Model):
+    __tablename__ = 'student_applications'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('student_profiles.id'), nullable=False)
+    drive_id = db.Column(db.Integer, db.ForeignKey('placement_drives.id'), nullable=False)
+    application_status = db.Column(db.String(20), default='applied')  # applied, under_review, interview_scheduled, interview_completed, offer_sent, accepted, rejected
+    ai_score = db.Column(db.Numeric(5, 2))
+    applied_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     def to_dict(self):
         return {
             'id': self.id,
-            'setting_key': self.setting_key,
-            'setting_value': self.setting_value,
-            'description': self.description,
+            'student_id': self.student_id,
+            'drive_id': self.drive_id,
+            'application_status': self.application_status,
+            'ai_score': float(self.ai_score) if self.ai_score else None,
+            'applied_at': self.applied_at.isoformat() if self.applied_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+class RoundResult(db.Model):
+    __tablename__ = 'round_results'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    application_id = db.Column(db.Integer, db.ForeignKey('student_applications.id'), nullable=False)
+    round_name = db.Column(db.String(100), nullable=False)
+    round_type = db.Column(db.String(50))  # online_test, technical, hr, coding, etc.
+    score = db.Column(db.Numeric(5, 2))
+    max_score = db.Column(db.Numeric(5, 2))
+    result = db.Column(db.String(20))  # pass, fail, pending
+    feedback = db.Column(db.Text)
+    conducted_at = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'application_id': self.application_id,
+            'round_name': self.round_name,
+            'round_type': self.round_type,
+            'score': float(self.score) if self.score else None,
+            'max_score': float(self.max_score) if self.max_score else None,
+            'result': self.result,
+            'feedback': self.feedback,
+            'conducted_at': self.conducted_at.isoformat() if self.conducted_at else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+class OfferLetter(db.Model):
+    __tablename__ = 'offer_letters'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    application_id = db.Column(db.Integer, db.ForeignKey('student_applications.id'), nullable=False)
+    offer_type = db.Column(db.String(50), default='full_time')  # full_time, internship, part_time
+    position = db.Column(db.String(100), nullable=False)
+    salary_package = db.Column(db.Numeric(10, 2))
+    benefits = db.Column(db.Text)  # JSON array
+    joining_date = db.Column(db.Date)
+    location = db.Column(db.String(200))
+    terms_conditions = db.Column(db.Text)
+    offer_letter_file = db.Column(db.String(255))
+    status = db.Column(db.String(20), default='pending')  # pending, sent, accepted, declined, expired
+    sent_at = db.Column(db.DateTime)
+    response_deadline = db.Column(db.Date)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def get_benefits(self):
+        return json.loads(self.benefits) if self.benefits else []
+    
+    def set_benefits(self, benefits):
+        self.benefits = json.dumps(benefits)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'application_id': self.application_id,
+            'offer_type': self.offer_type,
+            'position': self.position,
+            'salary_package': float(self.salary_package) if self.salary_package else None,
+            'benefits': self.get_benefits(),
+            'joining_date': self.joining_date.isoformat() if self.joining_date else None,
+            'location': self.location,
+            'terms_conditions': self.terms_conditions,
+            'offer_letter_file': self.offer_letter_file,
+            'status': self.status,
+            'sent_at': self.sent_at.isoformat() if self.sent_at else None,
+            'response_deadline': self.response_deadline.isoformat() if self.response_deadline else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+class RecruitmentRound(db.Model):
+    __tablename__ = 'recruitment_rounds'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    drive_id = db.Column(db.Integer, db.ForeignKey('placement_drives.id'), nullable=False)
+    round_name = db.Column(db.String(100), nullable=False)
+    round_type = db.Column(db.String(50))  # online_test, technical, hr, coding, etc.
+    description = db.Column(db.Text)
+    scheduled_date = db.Column(db.DateTime)
+    venue = db.Column(db.String(200))
+    duration_minutes = db.Column(db.Integer)
+    max_score = db.Column(db.Numeric(5, 2))
+    passing_score = db.Column(db.Numeric(5, 2))
+    instructions = db.Column(db.Text)
+    is_mandatory = db.Column(db.Boolean, default=True)
+    order = db.Column(db.Integer, default=1)  # Round order in the drive
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'drive_id': self.drive_id,
+            'round_name': self.round_name,
+            'round_type': self.round_type,
+            'description': self.description,
+            'scheduled_date': self.scheduled_date.isoformat() if self.scheduled_date else None,
+            'venue': self.venue,
+            'duration_minutes': self.duration_minutes,
+            'max_score': float(self.max_score) if self.max_score else None,
+            'passing_score': float(self.passing_score) if self.passing_score else None,
+            'instructions': self.instructions,
+            'is_mandatory': self.is_mandatory,
+            'order': self.order,
+            'created_at': self.created_at.isoformat() if self.created_at else None
         }
