@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity
@@ -21,7 +21,7 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_pre_ping': True,
     'pool_recycle': 3600,
 }
-app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'jwt-secret-string')
+app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'jwt-secret-string-change-in-production')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = 86400  # 24 hours
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -57,6 +57,7 @@ from routes.hod_routes import hod_bp
 from routes.tpo_routes import tpo_bp
 from routes.company_routes import company_bp
 from routes.drive_routes import drive_bp
+from routes.dashboard_routes import dashboard_bp
 from services.email_service import email_service
 from services.ai_service import ai_service
 from services.file_service import file_service
@@ -69,6 +70,7 @@ app.register_blueprint(hod_bp, url_prefix='/api/hod')
 app.register_blueprint(tpo_bp, url_prefix='/api/tpo')
 app.register_blueprint(company_bp, url_prefix='/api/companies')
 app.register_blueprint(drive_bp, url_prefix='/api/drives')
+app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
 
 # Initialize services
 email_service.init_app(app)
@@ -81,7 +83,7 @@ def health_check():
     """Health check endpoint"""
     return jsonify({
         'status': 'healthy',
-        'timestamp': datetime.utcnow().isoformat(),
+        'timestamp': datetime.now(timezone.utc).isoformat(),
         'version': '1.0.0'
     })
 
