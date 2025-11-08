@@ -8,13 +8,13 @@ db = SQLAlchemy()
 
 class User(db.Model):
     __tablename__ = 'users'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(255), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.Enum('student', 'hod', 'tpo'), nullable=False)
     is_active = db.Column(db.Boolean, default=True)
-    is_approved = db.Column(db.Boolean, default=False)
+    is_approved = db.Column(db.Boolean, default=True)  # Changed default to True for HOD and TPO
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_login = db.Column(db.DateTime)
@@ -37,7 +37,7 @@ class User(db.Model):
 
 class Department(db.Model):
     __tablename__ = 'departments'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), unique=True, nullable=False)
     code = db.Column(db.String(10), unique=True, nullable=False)
@@ -45,6 +45,10 @@ class Department(db.Model):
     hod_user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relationships
+    hod = db.relationship('User', backref='department_hod')
+    students = db.relationship('StudentProfile', backref='department')
     
     def to_dict(self):
         return {
@@ -123,7 +127,7 @@ class StudentProfile(db.Model):
 
 class HodProfile(db.Model):
     __tablename__ = 'hod_profiles'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     employee_id = db.Column(db.String(50), unique=True, nullable=False)
@@ -135,6 +139,10 @@ class HodProfile(db.Model):
     experience_years = db.Column(db.Integer, default=0)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relationships
+    user = db.relationship('User', backref='hod_profile')
+    department = db.relationship('Department', backref='hod_profiles')
     
     def to_dict(self):
         return {
@@ -234,7 +242,7 @@ class Company(db.Model):
 
 class PlacementDrive(db.Model):
     __tablename__ = 'placement_drives'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     company_id = db.Column(db.Integer, db.ForeignKey('companies.id'), nullable=False)
     title = db.Column(db.String(200), nullable=False)
@@ -254,6 +262,10 @@ class PlacementDrive(db.Model):
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    company = db.relationship('Company', backref='drives')
+    creator = db.relationship('User', backref='created_drives')
     
     def get_required_skills(self):
         return json.loads(self.required_skills) if self.required_skills else []
@@ -285,7 +297,7 @@ class PlacementDrive(db.Model):
 
 class StudentApplication(db.Model):
     __tablename__ = 'student_applications'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     student_id = db.Column(db.Integer, db.ForeignKey('student_profiles.id'), nullable=False)
     drive_id = db.Column(db.Integer, db.ForeignKey('placement_drives.id'), nullable=False)
@@ -293,6 +305,10 @@ class StudentApplication(db.Model):
     ai_score = db.Column(db.Numeric(5, 2))
     applied_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    student = db.relationship('StudentProfile', backref='applications')
+    drive = db.relationship('PlacementDrive', backref='applications')
     
     def to_dict(self):
         return {

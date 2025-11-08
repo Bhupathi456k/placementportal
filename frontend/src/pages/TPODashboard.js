@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Container,
   Typography,
@@ -14,7 +15,11 @@ import {
   List,
   ListItem,
   ListItemIcon,
-  ListItemText
+  ListItemText,
+  Badge,
+  Alert,
+  CircularProgress,
+  Fab
 } from '@mui/material';
 import {
   Business,
@@ -30,71 +35,135 @@ import {
   Assessment,
   Security,
   Timeline,
-  CheckCircle
+  CheckCircle,
+  Refresh,
+  ArrowBack
 } from '@mui/icons-material';
+import NotificationPanel from '../components/NotificationPanel';
+import Logo from '../components/Logo';
+import CompanyManagement from '../components/tpo/CompanyManagement';
+import PlacementDrives from '../components/tpo/PlacementDrives';
+import StudentApplications from '../components/tpo/StudentApplications';
+import RecruitmentRounds from '../components/tpo/RecruitmentRounds';
+import Reports from '../components/tpo/Reports';
+import SystemAdmin from '../components/tpo/SystemAdmin';
+import { tpoService } from '../services/tpoService';
+import BackButton from '../components/BackButton';
 
 const TPODashboard = ({ onLogout }) => {
-  // Mock data for demonstration
+  const navigate = useNavigate();
+  const [activeView, setActiveView] = useState('dashboard');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [liveStats, setLiveStats] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Mock user data
   const tpoData = {
     name: "Mr. Robert Anderson",
-    totalCompanies: 45,
-    activeDrives: 8,
-    totalApplications: 1250,
-    successfulPlacements: 320,
-    upcomingEvents: [
-      { type: "interview", company: "Google", date: "Nov 15, 2025" },
-      { type: "drive", company: "Microsoft", date: "Nov 18, 2025" },
-      { type: "campus", company: "Amazon", date: "Nov 22, 2025" }
-    ]
+    email: "robert.anderson@college.edu",
+    role: "Training & Placement Officer"
   };
 
+  // Quick actions with new AI-powered interfaces
   const quickActions = [
     {
       title: "Company Management",
-      description: "Add and manage company details",
+      description: "Add and manage company details with AI insights",
       icon: <Business sx={{ fontSize: 40, color: '#4caf50' }} />,
       color: 'linear-gradient(135deg, #4caf50 0%, #66bb6a 100%)',
-      action: () => console.log('Company Management clicked')
+      action: () => setActiveView('company-management'),
+      aiPowered: true
     },
     {
       title: "Placement Drives",
-      description: "Create and manage placement drives",
+      description: "Create and manage placement drives with AI analytics",
       icon: <School sx={{ fontSize: 40, color: '#2196f3' }} />,
       color: 'linear-gradient(135deg, #2196f3 0%, #64b5f6 100%)',
-      action: () => console.log('Placement Drives clicked')
+      action: () => setActiveView('placement-drives'),
+      aiPowered: true
     },
     {
       title: "Student Applications",
-      description: "Review and filter student applications",
+      description: "Review and filter student applications with AI insights",
       icon: <Assignment sx={{ fontSize: 40, color: '#ff9800' }} />,
       color: 'linear-gradient(135deg, #ff9800 0%, #ffb74d 100%)',
-      action: () => console.log('Student Applications clicked')
+      action: () => setActiveView('student-applications'),
+      aiPowered: true
     },
     {
       title: "Recruitment Rounds",
-      description: "Manage recruitment process and results",
+      description: "Manage recruitment process with AI optimization",
       icon: <Timeline sx={{ fontSize: 40, color: '#9c27b0' }} />,
       color: 'linear-gradient(135deg, #9c27b0 0%, #ba68c8 100%)',
-      action: () => console.log('Recruitment Rounds clicked')
+      action: () => setActiveView('recruitment-rounds'),
+      aiPowered: true
     },
     {
       title: "Reports",
-      description: "Generate comprehensive reports",
+      description: "Generate comprehensive AI-powered reports",
       icon: <Analytics sx={{ fontSize: 40, color: '#f44336' }} />,
       color: 'linear-gradient(135deg, #f44336 0%, #ef5350 100%)',
-      action: () => console.log('Reports clicked')
+      action: () => setActiveView('reports'),
+      aiPowered: true
     },
     {
       title: "System Admin",
-      description: "System configuration and settings",
+      description: "System configuration and AI optimization",
       icon: <Security sx={{ fontSize: 40, color: '#607d8b' }} />,
       color: 'linear-gradient(135deg, #607d8b 0%, #78909c 100%)',
-      action: () => console.log('System Admin clicked')
+      action: () => setActiveView('system-admin'),
+      aiPowered: true
     }
   ];
 
-  return (
-    <div className="glass-card" style={{ minHeight: '100vh' }}>
+  useEffect(() => {
+    loadLiveStats();
+    // Set up auto-refresh every 30 seconds
+    const interval = setInterval(loadLiveStats, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const loadLiveStats = async () => {
+    try {
+      setError(null);
+      const response = await tpoService.getLiveStats();
+      setLiveStats(response.stats);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadLiveStats();
+    setRefreshing(false);
+  };
+
+  // Render current view
+  const renderCurrentView = () => {
+    switch (activeView) {
+      case 'company-management':
+        return <CompanyManagement onClose={() => setActiveView('dashboard')} />;
+      case 'placement-drives':
+        return <PlacementDrives onClose={() => setActiveView('dashboard')} />;
+      case 'student-applications':
+        return <StudentApplications onClose={() => setActiveView('dashboard')} />;
+      case 'recruitment-rounds':
+        return <RecruitmentRounds onClose={() => setActiveView('dashboard')} />;
+      case 'reports':
+        return <Reports onClose={() => setActiveView('dashboard')} />;
+      case 'system-admin':
+        return <SystemAdmin onClose={() => setActiveView('dashboard')} />;
+      default:
+        return renderDashboard();
+    }
+  };
+
+  const renderDashboard = () => (
+    <>
       {/* Header */}
       <Box sx={{ 
         background: 'linear-gradient(135deg, #9c27b0 0%, #673ab7 100%)',
@@ -126,15 +195,25 @@ const TPODashboard = ({ onLogout }) => {
                   Welcome, {tpoData.name.split(' ')[1]}!
                 </Typography>
                 <Typography variant="body1" sx={{ opacity: 0.9 }}>
-                  Training & Placement Officer
+                  {tpoData.role}
                 </Typography>
               </Box>
             </Box>
-            <Box sx={{ display: 'flex', gap: 1 }}>
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+              <IconButton 
+                sx={{ color: 'white' }}
+                onClick={handleRefresh}
+                disabled={refreshing}
+              >
+                <Refresh />
+              </IconButton>
               <IconButton sx={{ color: 'white' }}>
                 <Notifications />
               </IconButton>
-              <IconButton sx={{ color: 'white' }}>
+              <IconButton
+                sx={{ color: 'white' }}
+                onClick={() => navigate('/tpo/settings')}
+              >
                 <Settings />
               </IconButton>
               <Button 
@@ -158,139 +237,153 @@ const TPODashboard = ({ onLogout }) => {
       </Box>
 
       <Container maxWidth="lg">
-        {/* Stats Cards */}
-        <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={6} md={3}>
-            <Card className="animated-card">
-              <CardContent sx={{ textAlign: 'center' }}>
-                <Box sx={{ 
-                  width: 60, 
-                  height: 60, 
-                  borderRadius: '50%', 
-                  background: 'linear-gradient(135deg, #4caf50, #66bb6a)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto 16px',
-                  animation: 'pulse 2s infinite'
-                }}>
-                  <Business sx={{ color: 'white', fontSize: 30 }} />
-                </Box>
-                <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#4caf50' }}>
-                  {tpoData.totalCompanies}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Total Companies
-                </Typography>
-                <LinearProgress 
-                  variant="determinate" 
-                  value={90} 
-                  sx={{ mt: 1, borderRadius: 5 }}
-                />
-              </CardContent>
-            </Card>
-          </Grid>
-          
-          <Grid item xs={12} sm={6} md={3}>
-            <Card className="animated-card">
-              <CardContent sx={{ textAlign: 'center' }}>
-                <Box sx={{ 
-                  width: 60, 
-                  height: 60, 
-                  borderRadius: '50%', 
-                  background: 'linear-gradient(135deg, #2196f3, #64b5f6)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto 16px',
-                  animation: 'pulse 2s infinite'
-                }}>
-                  <School sx={{ color: 'white', fontSize: 30 }} />
-                </Box>
-                <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#2196f3' }}>
-                  {tpoData.activeDrives}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Active Drives
-                </Typography>
-                <Chip 
-                  label="2 this week" 
-                  size="small" 
-                  color="info" 
-                  sx={{ mt: 1 }}
-                />
-              </CardContent>
-            </Card>
-          </Grid>
-          
-          <Grid item xs={12} sm={6} md={3}>
-            <Card className="animated-card">
-              <CardContent sx={{ textAlign: 'center' }}>
-                <Box sx={{ 
-                  width: 60, 
-                  height: 60, 
-                  borderRadius: '50%', 
-                  background: 'linear-gradient(135deg, #ff9800, #ffb74d)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto 16px',
-                  animation: 'pulse 2s infinite'
-                }}>
-                  <Assignment sx={{ color: 'white', fontSize: 30 }} />
-                </Box>
-                <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#ff9800' }}>
-                  {tpoData.totalApplications}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Total Applications
-                </Typography>
-                <LinearProgress 
-                  variant="determinate" 
-                  value={75} 
-                  color="warning"
-                  sx={{ mt: 1, borderRadius: 5 }}
-                />
-              </CardContent>
-            </Card>
-          </Grid>
-          
-          <Grid item xs={12} sm={6} md={3}>
-            <Card className="animated-card">
-              <CardContent sx={{ textAlign: 'center' }}>
-                <Box sx={{ 
-                  width: 60, 
-                  height: 60, 
-                  borderRadius: '50%', 
-                  background: 'linear-gradient(135deg, #9c27b0, #ba68c8)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto 16px',
-                  animation: 'pulse 2s infinite'
-                }}>
-                  <CheckCircle sx={{ color: 'white', fontSize: 30 }} />
-                </Box>
-                <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#9c27b0' }}>
-                  {tpoData.successfulPlacements}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Successful Placements
-                </Typography>
-                <Chip 
-                  label="25% success rate" 
-                  size="small" 
-                  color="secondary" 
-                  sx={{ mt: 1 }}
-                />
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
+        {/* Error Alert */}
+        {error && (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {error}
+          </Alert>
+        )}
 
-        {/* Quick Actions Grid */}
+        {/* Live Stats Cards */}
+        {liveStats ? (
+          <Grid container spacing={3} sx={{ mb: 4 }}>
+            <Grid item xs={12} sm={6} md={3}>
+              <Card className="animated-card">
+                <CardContent sx={{ textAlign: 'center' }}>
+                  <Box sx={{ 
+                    width: 60, 
+                    height: 60, 
+                    borderRadius: '50%', 
+                    background: 'linear-gradient(135deg, #4caf50, #66bb6a)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto 16px',
+                    animation: 'pulse 2s infinite'
+                  }}>
+                    <Business sx={{ color: 'white', fontSize: 30 }} />
+                  </Box>
+                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#4caf50' }}>
+                    {liveStats.totalCompanies}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Total Companies
+                  </Typography>
+                  <LinearProgress 
+                    variant="determinate" 
+                    value={90} 
+                    sx={{ mt: 1, borderRadius: 5 }}
+                  />
+                </CardContent>
+              </Card>
+            </Grid>
+            
+            <Grid item xs={12} sm={6} md={3}>
+              <Card className="animated-card">
+                <CardContent sx={{ textAlign: 'center' }}>
+                  <Box sx={{ 
+                    width: 60, 
+                    height: 60, 
+                    borderRadius: '50%', 
+                    background: 'linear-gradient(135deg, #2196f3, #64b5f6)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto 16px',
+                    animation: 'pulse 2s infinite'
+                  }}>
+                    <School sx={{ color: 'white', fontSize: 30 }} />
+                  </Box>
+                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#2196f3' }}>
+                    {liveStats.activeDrives}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Active Drives
+                  </Typography>
+                  <Chip 
+                    label="2 this week" 
+                    size="small" 
+                    color="info" 
+                    sx={{ mt: 1 }}
+                  />
+                </CardContent>
+              </Card>
+            </Grid>
+            
+            <Grid item xs={12} sm={6} md={3}>
+              <Card className="animated-card">
+                <CardContent sx={{ textAlign: 'center' }}>
+                  <Box sx={{ 
+                    width: 60, 
+                    height: 60, 
+                    borderRadius: '50%', 
+                    background: 'linear-gradient(135deg, #ff9800, #ffb74d)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto 16px',
+                    animation: 'pulse 2s infinite'
+                  }}>
+                    <Assignment sx={{ color: 'white', fontSize: 30 }} />
+                  </Box>
+                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#ff9800' }}>
+                    {liveStats.totalApplications}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Total Applications
+                  </Typography>
+                  <LinearProgress 
+                    variant="determinate" 
+                    value={75} 
+                    color="warning"
+                    sx={{ mt: 1, borderRadius: 5 }}
+                  />
+                </CardContent>
+              </Card>
+            </Grid>
+            
+            <Grid item xs={12} sm={6} md={3}>
+              <Card className="animated-card">
+                <CardContent sx={{ textAlign: 'center' }}>
+                  <Box sx={{ 
+                    width: 60, 
+                    height: 60, 
+                    borderRadius: '50%', 
+                    background: 'linear-gradient(135deg, #9c27b0, #ba68c8)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto 16px',
+                    animation: 'pulse 2s infinite'
+                  }}>
+                    <CheckCircle sx={{ color: 'white', fontSize: 30 }} />
+                  </Box>
+                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#9c27b0' }}>
+                    {liveStats.successfulPlacements}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Successful Placements
+                  </Typography>
+                  <Chip 
+                    label="25% success rate" 
+                    size="small" 
+                    color="secondary" 
+                    sx={{ mt: 1 }}
+                  />
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+        ) : (
+          <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+            <CircularProgress />
+            <Typography variant="h6" sx={{ ml: 2 }}>Loading Live Data...</Typography>
+          </Box>
+        )}
+
+        {/* AI-Powered Quick Actions Grid */}
         <Typography variant="h5" sx={{ mb: 3, fontWeight: 'bold', color: '#333' }}>
-          Quick Actions
+          AI-Powered Quick Actions
         </Typography>
         <Grid container spacing={3} sx={{ mb: 4 }}>
           {quickActions.map((action, index) => (
@@ -309,7 +402,11 @@ const TPODashboard = ({ onLogout }) => {
                   background: action.color,
                   color: 'white',
                   position: 'relative',
-                  overflow: 'hidden'
+                  overflow: 'hidden',
+                  '&:hover': {
+                    transform: 'translateY(-8px)',
+                    boxShadow: '0 12px 24px rgba(0,0,0,0.2)'
+                  }
                 }}
               >
                 <Box sx={{ 
@@ -329,19 +426,31 @@ const TPODashboard = ({ onLogout }) => {
                   <Typography variant="body2" sx={{ mt: 1, opacity: 0.9 }}>
                     {action.description}
                   </Typography>
+                  {action.aiPowered && (
+                    <Chip
+                      label="AI-Powered"
+                      size="small"
+                      sx={{
+                        mt: 1,
+                        bgcolor: 'rgba(255,255,255,0.2)',
+                        color: 'white',
+                        fontWeight: 'bold'
+                      }}
+                    />
+                  )}
                 </Box>
               </Card>
             </Grid>
           ))}
         </Grid>
 
-        {/* Recent Activity and Upcoming Events */}
+        {/* System Overview and Upcoming Events */}
         <Grid container spacing={3}>
           <Grid item xs={12} md={8}>
             <Card className="animated-card">
               <CardContent>
                 <Typography variant="h6" sx={{ mb: 3, fontWeight: 'bold' }}>
-                  System Overview
+                  AI-Powered System Overview
                 </Typography>
                 <Grid container spacing={2}>
                   <Grid item xs={12} sm={6}>
@@ -364,7 +473,7 @@ const TPODashboard = ({ onLogout }) => {
                   <Grid item xs={12} sm={6}>
                     <Box sx={{ p: 2, background: 'rgba(0,0,0,0.02)', borderRadius: 2 }}>
                       <Typography variant="h6" color="secondary" gutterBottom>
-                        ⚡ Quick Stats
+                        ⚡ AI Quick Stats
                       </Typography>
                       <List dense>
                         <ListItem>
@@ -389,7 +498,11 @@ const TPODashboard = ({ onLogout }) => {
                 <Typography variant="h6" sx={{ mb: 3, fontWeight: 'bold' }}>
                   Upcoming Events
                 </Typography>
-                {tpoData.upcomingEvents.map((event, index) => (
+                {[
+                  { type: 'interview', company: 'Google', date: 'Nov 15, 2025' },
+                  { type: 'drive', company: 'Microsoft', date: 'Nov 18, 2025' },
+                  { type: 'campus', company: 'Amazon', date: 'Nov 22, 2025' }
+                ].map((event, index) => (
                   <Box 
                     key={index}
                     sx={{ 
@@ -438,6 +551,41 @@ const TPODashboard = ({ onLogout }) => {
           </Grid>
         </Grid>
       </Container>
+    </>
+  );
+
+  if (loading) {
+    return (
+      <div className="glass-card" style={{ minHeight: '100vh' }}>
+        <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
+          <CircularProgress size={60} />
+          <Typography variant="h6" sx={{ ml: 2 }}>Loading TPO Dashboard...</Typography>
+        </Box>
+      </div>
+    );
+  }
+
+  return (
+    <div className="glass-card" style={{ minHeight: '100vh', position: 'relative' }}>
+      <BackButton />
+      {/* Floating Back Button */}
+      {activeView !== 'dashboard' && (
+        <Fab
+          color="primary"
+          aria-label="back"
+          sx={{
+            position: 'fixed',
+            top: 16,
+            left: 16,
+            zIndex: 1000
+          }}
+          onClick={() => setActiveView('dashboard')}
+        >
+          <ArrowBack />
+        </Fab>
+      )}
+
+      {renderCurrentView()}
     </div>
   );
 };

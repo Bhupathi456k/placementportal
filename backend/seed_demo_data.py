@@ -43,6 +43,7 @@ def create_demo_data():
             me_dept = Department.query.filter_by(code="ME").first()
             
             demo_users = [
+                # Students
                 {
                     'email': 'student@demo.com',
                     'password': 'password123',
@@ -60,6 +61,71 @@ def create_demo_data():
                     }
                 },
                 {
+                    'email': 'student2@demo.com',
+                    'password': 'password123',
+                    'role': 'student',
+                    'is_approved': True,
+                    'profile_data': {
+                        'student_id': 'STU2024002',
+                        'first_name': 'Alice',
+                        'last_name': 'Johnson',
+                        'department_id': cse_dept.id if cse_dept else 1,
+                        'batch_year': 2024,
+                        'cgpa': 9.2,
+                        'phone': '+91-9876543213',
+                        'gender': 'female'
+                    }
+                },
+                {
+                    'email': 'student3@demo.com',
+                    'password': 'password123',
+                    'role': 'student',
+                    'is_approved': True,
+                    'profile_data': {
+                        'student_id': 'STU2024003',
+                        'first_name': 'Bob',
+                        'last_name': 'Wilson',
+                        'department_id': ece_dept.id if ece_dept else 2,
+                        'batch_year': 2024,
+                        'cgpa': 7.8,
+                        'phone': '+91-9876543214',
+                        'gender': 'male'
+                    }
+                },
+                {
+                    'email': 'student4@demo.com',
+                    'password': 'password123',
+                    'role': 'student',
+                    'is_approved': True,
+                    'profile_data': {
+                        'student_id': 'STU2024004',
+                        'first_name': 'Emma',
+                        'last_name': 'Davis',
+                        'department_id': me_dept.id if me_dept else 3,
+                        'batch_year': 2024,
+                        'cgpa': 8.9,
+                        'phone': '+91-9876543215',
+                        'gender': 'female'
+                    }
+                },
+                {
+                    'email': 'student5@demo.com',
+                    'password': 'password123',
+                    'role': 'student',
+                    'is_approved': True,
+                    'profile_data': {
+                        'student_id': 'STU2024005',
+                        'first_name': 'Charlie',
+                        'last_name': 'Brown',
+                        'department_id': cse_dept.id if cse_dept else 1,
+                        'batch_year': 2024,
+                        'cgpa': 8.1,
+                        'phone': '+91-9876543216',
+                        'gender': 'male'
+                    }
+                },
+                # HODs
+                {
                     'email': 'hod@demo.com',
                     'password': 'password123',
                     'role': 'hod',
@@ -75,6 +141,67 @@ def create_demo_data():
                     }
                 },
                 {
+                    'email': 'hod2@demo.com',
+                    'password': 'password123',
+                    'role': 'hod',
+                    'is_approved': True,
+                    'profile_data': {
+                        'employee_id': 'HOD2024002',
+                        'first_name': 'Dr. Michael',
+                        'last_name': 'Anderson',
+                        'department_id': ece_dept.id if ece_dept else 2,
+                        'phone': '+91-9876543217',
+                        'qualification': 'Ph.D. in Electronics Engineering',
+                        'experience_years': 12
+                    }
+                },
+                {
+                    'email': 'hod3@demo.com',
+                    'password': 'password123',
+                    'role': 'hod',
+                    'is_approved': True,
+                    'profile_data': {
+                        'employee_id': 'HOD2024003',
+                        'first_name': 'Dr. Sarah',
+                        'last_name': 'Williams',
+                        'department_id': me_dept.id if me_dept else 3,
+                        'phone': '+91-9876543218',
+                        'qualification': 'Ph.D. in Mechanical Engineering',
+                        'experience_years': 18
+                    }
+                },
+                {
+                    'email': 'hod4@demo.com',
+                    'password': 'password123',
+                    'role': 'hod',
+                    'is_approved': True,
+                    'profile_data': {
+                        'employee_id': 'HOD2024004',
+                        'first_name': 'Dr. David',
+                        'last_name': 'Miller',
+                        'department_id': Department.query.filter_by(code="CE").first().id if Department.query.filter_by(code="CE").first() else 4,
+                        'phone': '+91-9876543219',
+                        'qualification': 'Ph.D. in Civil Engineering',
+                        'experience_years': 14
+                    }
+                },
+                {
+                    'email': 'hod5@demo.com',
+                    'password': 'password123',
+                    'role': 'hod',
+                    'is_approved': True,
+                    'profile_data': {
+                        'employee_id': 'HOD2024005',
+                        'first_name': 'Dr. Lisa',
+                        'last_name': 'Garcia',
+                        'department_id': Department.query.filter_by(code="IT").first().id if Department.query.filter_by(code="IT").first() else 5,
+                        'phone': '+91-9876543220',
+                        'qualification': 'Ph.D. in Information Technology',
+                        'experience_years': 10
+                    }
+                },
+                # TPOs
+                {
                     'email': 'tpo@demo.com',
                     'password': 'password123',
                     'role': 'tpo',
@@ -83,10 +210,70 @@ def create_demo_data():
                         'employee_id': 'TPO2024001',
                         'first_name': 'Prof. Robert',
                         'last_name': 'Johnson',
-                        'department_id': ece_dept.id if ece_dept else 2,
+                        'department_id': cse_dept.id if cse_dept else 1,
                         'phone': '+91-9876543212',
                         'qualification': 'M.Tech in Electronics',
                         'experience_years': 12
+                    }
+                },
+                {
+                    'email': 'tpo2@demo.com',
+                    'password': 'password123',
+                    'role': 'tpo',
+                    'is_approved': True,
+                    'profile_data': {
+                        'employee_id': 'TPO2024002',
+                        'first_name': 'Prof. Jennifer',
+                        'last_name': 'Martinez',
+                        'department_id': ece_dept.id if ece_dept else 2,
+                        'phone': '+91-9876543221',
+                        'qualification': 'MBA in Human Resources',
+                        'experience_years': 8
+                    }
+                },
+                {
+                    'email': 'tpo3@demo.com',
+                    'password': 'password123',
+                    'role': 'tpo',
+                    'is_approved': True,
+                    'profile_data': {
+                        'employee_id': 'TPO2024003',
+                        'first_name': 'Prof. Kevin',
+                        'last_name': 'Taylor',
+                        'department_id': me_dept.id if me_dept else 3,
+                        'phone': '+91-9876543222',
+                        'qualification': 'M.Tech in Industrial Engineering',
+                        'experience_years': 16
+                    }
+                },
+                {
+                    'email': 'tpo4@demo.com',
+                    'password': 'password123',
+                    'role': 'tpo',
+                    'is_approved': True,
+                    'profile_data': {
+                        'employee_id': 'TPO2024004',
+                        'first_name': 'Prof. Amanda',
+                        'last_name': 'Rodriguez',
+                        'department_id': Department.query.filter_by(code="CE").first().id if Department.query.filter_by(code="CE").first() else 4,
+                        'phone': '+91-9876543223',
+                        'qualification': 'M.Tech in Construction Management',
+                        'experience_years': 11
+                    }
+                },
+                {
+                    'email': 'tpo5@demo.com',
+                    'password': 'password123',
+                    'role': 'tpo',
+                    'is_approved': True,
+                    'profile_data': {
+                        'employee_id': 'TPO2024005',
+                        'first_name': 'Prof. Christopher',
+                        'last_name': 'Lee',
+                        'department_id': Department.query.filter_by(code="IT").first().id if Department.query.filter_by(code="IT").first() else 5,
+                        'phone': '+91-9876543224',
+                        'qualification': 'M.Tech in Software Engineering',
+                        'experience_years': 9
                     }
                 }
             ]

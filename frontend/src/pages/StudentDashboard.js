@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Container,
   Typography,
@@ -10,7 +11,8 @@ import {
   Chip,
   Avatar,
   LinearProgress,
-  IconButton
+  IconButton,
+  Badge
 } from '@mui/material';
 import {
   School,
@@ -23,9 +25,16 @@ import {
   Logout,
   AccountCircle
 } from '@mui/icons-material';
+import NotificationPanel from '../components/NotificationPanel';
+import Logo from '../components/Logo';
+import EnhancedQuickActionCard from '../components/EnhancedQuickActionCard';
+import BackButton from '../components/BackButton';
 
 const StudentDashboard = ({ onLogout }) => {
-  // Mock data for demonstration
+  const navigate = useNavigate();
+  const [notificationAnchor, setNotificationAnchor] = useState(null);
+  const notificationOpen = Boolean(notificationAnchor);
+  
   const studentData = {
     name: "John Doe",
     cgpa: 8.5,
@@ -42,50 +51,51 @@ const StudentDashboard = ({ onLogout }) => {
   const quickActions = [
     {
       title: "Profile",
-      description: "Manage your profile information and resume",
+      description: "Manage your profile information and resume with AI insights",
       icon: <AccountCircle sx={{ fontSize: 40, color: '#667eea' }} />,
       color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      action: () => console.log('Profile clicked')
+      action: () => navigate('/student/profile')
     },
     {
       title: "Placement Drives",
-      description: "View and apply to available placement drives",
+      description: "View and apply to drives with AI job fit scores",
       icon: <School sx={{ fontSize: 40, color: '#4caf50' }} />,
       color: 'linear-gradient(135deg, #4caf50 0%, #66bb6a 100%)',
-      action: () => console.log('Drives clicked')
+      action: () => navigate('/student/drives')
     },
     {
       title: "Applications",
-      description: "Track your application status and results",
+      description: "Track applications with AI progress predictions",
       icon: <Assignment sx={{ fontSize: 40, color: '#ff9800' }} />,
       color: 'linear-gradient(135deg, #ff9800 0%, #ffb74d 100%)',
-      action: () => console.log('Applications clicked')
+      action: () => navigate('/student/applications')
     },
     {
       title: "Analytics",
-      description: "View your placement statistics and progress",
+      description: "AI-powered placement statistics and insights",
       icon: <TrendingUp sx={{ fontSize: 40, color: '#9c27b0' }} />,
       color: 'linear-gradient(135deg, #9c27b0 0%, #ba68c8 100%)',
-      action: () => console.log('Analytics clicked')
+      action: () => navigate('/student/analytics')
     },
     {
       title: "Resume",
-      description: "Upload and manage your resume",
+      description: "AI-enhanced resume optimization and scoring",
       icon: <Description sx={{ fontSize: 40, color: '#f44336' }} />,
       color: 'linear-gradient(135deg, #f44336 0%, #ef5350 100%)',
-      action: () => console.log('Resume clicked')
+      action: () => navigate('/student/resume')
     },
     {
       title: "Results",
-      description: "View round results and feedback",
+      description: "View round results with AI feedback analysis",
       icon: <ShowChart sx={{ fontSize: 40, color: '#2196f3' }} />,
       color: 'linear-gradient(135deg, #2196f3 0%, #64b5f6 100%)',
-      action: () => console.log('Results clicked')
+      action: () => navigate('/student/results')
     }
   ];
 
   return (
-    <div className="glass-card" style={{ minHeight: '100vh' }}>
+    <div className="glass-card" style={{ minHeight: '100vh', position: 'relative' }}>
+      <BackButton />
       {/* Header */}
       <Box sx={{ 
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -102,38 +112,49 @@ const StudentDashboard = ({ onLogout }) => {
             flexWrap: 'wrap',
             gap: 2
           }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Avatar sx={{ 
-                width: 60, 
-                height: 60, 
-                bgcolor: 'rgba(255,255,255,0.2)',
-                fontSize: '24px',
-                animation: 'pulse 2s infinite'
-              }}>
-                {studentData.name.split(' ').map(n => n[0]).join('')}
-              </Avatar>
-              <Box>
-                <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 0.5 }}>
-                  Welcome back, {studentData.name.split(' ')[0]}!
-                </Typography>
-                <Typography variant="body1" sx={{ opacity: 0.9 }}>
-                  Ready to conquer your next opportunity?
-                </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+              <Logo size="small" color="white" />
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Avatar sx={{
+                  width: 60,
+                  height: 60,
+                  bgcolor: 'rgba(255,255,255,0.2)',
+                  fontSize: '24px',
+                  animation: 'pulse 2s infinite'
+                }}>
+                  {studentData.name.split(' ').map(n => n[0]).join('')}
+                </Avatar>
+                <Box>
+                  <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+                    Welcome back, {studentData.name.split(' ')[0]}!
+                  </Typography>
+                  <Typography variant="body1" sx={{ opacity: 0.9 }}>
+                    Ready to conquer your next opportunity?
+                  </Typography>
+                </Box>
               </Box>
             </Box>
             <Box sx={{ display: 'flex', gap: 1 }}>
-              <IconButton sx={{ color: 'white' }}>
-                <Notifications />
+              <IconButton
+                sx={{ color: 'white' }}
+                onClick={(event) => setNotificationAnchor(event.currentTarget)}
+              >
+                <Badge badgeContent={3} color="error">
+                  <Notifications />
+                </Badge>
               </IconButton>
-              <IconButton sx={{ color: 'white' }}>
+              <IconButton
+                sx={{ color: 'white' }}
+                onClick={() => navigate('/student/settings')}
+              >
                 <Settings />
               </IconButton>
-              <Button 
-                variant="outlined" 
+              <Button
+                variant="outlined"
                 startIcon={<Logout />}
                 onClick={onLogout}
-                sx={{ 
-                  color: 'white', 
+                sx={{
+                  color: 'white',
                   borderColor: 'rgba(255,255,255,0.5)',
                   '&:hover': {
                     borderColor: 'white',
@@ -417,6 +438,14 @@ const StudentDashboard = ({ onLogout }) => {
           </Grid>
         </Grid>
       </Container>
+      
+      {/* Notification Panel */}
+      <NotificationPanel
+        userRole="student"
+        anchorEl={notificationAnchor}
+        onClose={() => setNotificationAnchor(null)}
+        open={notificationOpen}
+      />
     </div>
   );
 };

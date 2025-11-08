@@ -69,14 +69,14 @@ def get_hod_stats():
     try:
         current_user_id = get_jwt_identity()
         user = User.query.get(current_user_id)
-        
+
         if not user or user.role != 'hod':
             return jsonify({'error': 'Access denied'}), 403
-        
+
         hod_profile = user.hod_profile
         if not hod_profile:
             return jsonify({'error': 'HOD profile not found'}), 404
-        
+
         department = hod_profile.department
         if not department:
             return jsonify({'error': 'Department not found'}), 404
@@ -87,7 +87,7 @@ def get_hod_stats():
             StudentProfile.department_id == department.id,
             User.is_approved == True
         ).count()
-        
+
         pending_students = db.session.query(StudentProfile).join(User).filter(
             StudentProfile.department_id == department.id,
             User.is_approved == False
@@ -101,14 +101,16 @@ def get_hod_stats():
         # Calculate placement statistics
         placed_students = 0
         total_placed_applications = 0
-        
+
         # Get students with offers
         students_with_offers = db.session.query(StudentProfile).join(
-            StudentApplication, OfferLetter
+            StudentApplication
+        ).join(
+            OfferLetter, StudentApplication.id == OfferLetter.application_id
         ).filter(
             StudentProfile.department_id == department.id
         ).distinct().count()
-        
+
         placement_rate = (students_with_offers / total_students * 100) if total_students > 0 else 0
         
         # Get recent company visits
@@ -127,7 +129,9 @@ def get_hod_stats():
                 'recent_company_visits': recent_drives,
                 'pending_approvals': pending_students
             },
-            'recent_applications': [app.to_dict() for app in recent_applications[:5]]
+            'recent_applications': [app.to_dict() for app in recent_applications[:5]],
+            'department': department.to_dict(),
+            'hod_profile': hod_profile.to_dict()
         }), 200
         
     except Exception as e:

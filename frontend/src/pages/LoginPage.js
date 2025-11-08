@@ -28,6 +28,7 @@ import {
   Login as LoginIcon
 } from '@mui/icons-material';
 import { login } from '../services/authService';
+import BackButton from '../components/BackButton';
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -112,7 +113,7 @@ const LoginPage = ({ onLogin }) => {
     try {
       const { token, user } = await login(formData.email, formData.password);
       onLogin(token, user.role);
-      navigate(`/${user.role}`);
+      navigate(`/${user.role}/welcome`);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -143,9 +144,11 @@ const LoginPage = ({ onLogin }) => {
         alignItems: 'center',
         justifyContent: 'center',
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        p: 2
+        p: 2,
+        position: 'relative'
       }}
     >
+      <BackButton />
       <Container component="main" maxWidth="sm">
         <Box
           sx={{
