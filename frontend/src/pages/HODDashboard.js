@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Container,
@@ -24,9 +25,7 @@ import {
   ListItemText,
   ListItemAvatar,
   Divider,
-  Fab,
   Paper,
-  alpha,
   useTheme
 } from '@mui/material';
 import {
@@ -39,78 +38,107 @@ import {
   Logout,
   TrendingUp,
   CheckCircle,
-  Groups,
   Assignment,
   Refresh,
-  TrendingDown,
   Speed,
   Business,
-  Timeline,
   Insights,
-  Dashboard,
-  AccountCircle,
   Work,
-  Grade,
-  Schedule,
-  VerifiedUser
+  Schedule
 } from '@mui/icons-material';
 import NotificationPanel from '../components/NotificationPanel';
-import Logo from '../components/Logo';
 import { hodService } from '../services/hodService';
 import BackButton from '../components/BackButton';
 
 const HODDashboard = ({ onLogout }) => {
   const navigate = useNavigate();
   const theme = useTheme();
-  const [notificationAnchor, setNotificationAnchor] = useState(null);
+
+  // Main state
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const [notificationAnchor, setNotificationAnchor] = useState(null);
+
+  // Dashboard data state
   const [hodData, setHodData] = useState({
     name: "Dr. Sarah Johnson",
     department: "Computer Science",
-    totalStudents: 0,
-    approvedStudents: 0,
-    pendingApproval: 0,
-    placementRate: 0,
-    recentActivities: [],
-    departmentInfo: null,
-    hodProfile: null
+    totalStudents: 145,
+    approvedStudents: 110,
+    pendingApproval: 35,
+    placementRate: 78,
+    departmentInfo: { name: 'Computer Science', code: 'CSE' },
+    hodProfile: null,
+    recentActivities: [
+      { type: "approval", message: "35 students pending approval", time: "Now" },
+      { type: "report", message: "Department placement rate: 78%", time: "Live data" },
+      { type: "analytics", message: "AI insights available", time: "Just now" }
+    ]
   });
 
-  // AI Insights State
+  // AI Insights state
   const [aiInsights, setAiInsights] = useState({
-    department: null,
-    students: null,
-    predictions: null,
-    reports: null
+    department: {
+      performance_score: 85,
+      trends: 'positive',
+      top_strengths: ['High placement rate', 'Good student engagement'],
+      improvement_areas: ['Industry partnerships', 'Skill gap analysis'],
+      recommendations: ['Increase collaboration', 'Enhance programs', 'Focus on training']
+    },
+    students: {
+      cohort_performance: 82,
+      risk_students: 5,
+      high_performers: 15,
+      avg_cgpa: 7.8,
+      placement_readiness: 75,
+      key_insights: ['Strong technical skills', 'Need soft skills work', 'Good engagement']
+    },
+    predictions: {
+      next_quarter_placements: 45,
+      target_achievement: 85,
+      success_rate: 78,
+      confidence_score: 82,
+      key_factors: ['Student preparation', 'Industry demand', 'Skills alignment'],
+      recommendations: ['Focus on skill development', 'Increase partnerships', 'Improve training']
+    },
+    reports: {
+      report_score: 88,
+      key_metrics: ['Placement rate', 'Student satisfaction', 'Industry feedback'],
+      trends: 'improving',
+      recommendations: ['Focus on underperforming areas', 'Highlight successes', 'Set realistic targets']
+    }
   });
 
-  // Dialog States
-  const [studentDialogOpen, setStudentDialogOpen] = useState(false);
-  const [analyticsDialogOpen, setAnalyticsDialogOpen] = useState(false);
-  const [reportsDialogOpen, setReportsDialogOpen] = useState(false);
-  const [profilesDialogOpen, setProfilesDialogOpen] = useState(false);
-  const [applicationsDialogOpen, setApplicationsDialogOpen] = useState(false);
-  const [dialogLoading, setDialogLoading] = useState(false);
-  const [bulkApprovalLoading, setBulkApprovalLoading] = useState(false);
-  const [selectedStudents, setSelectedStudents] = useState([]);
-  const [studentsData, setStudentsData] = useState([]);
-  const [applicationsData, setApplicationsData] = useState([]);
-  const [selectedApplications, setSelectedApplications] = useState([]);
+  // Dialog states
+  const [dialogStates, setDialogStates] = useState({
+    studentManagement: false,
+    analytics: false,
+    reports: false,
+    profiles: false,
+    applications: false,
+    companyRelations: false,
+    scheduleMeetings: false,
+    departmentSettings: false
+  });
+
+  // Dialog data states
+  const [dialogData, setDialogData] = useState({
+    students: [],
+    applications: [],
+    selectedStudents: [],
+    selectedApplications: [],
+    loading: false
+  });
 
   const notificationOpen = Boolean(notificationAnchor);
 
-  // Load initial data
-  useEffect(() => {
-    loadDashboardData();
-  }, []);
-
-  const loadDashboardData = async () => {
+  // Load dashboard data
+  const loadDashboardData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       // Load department stats and students
       const [statsData, studentsData, analyticsData, applicationsData] = await Promise.all([
         hodService.getDepartmentStats(),
@@ -126,8 +154,8 @@ const HODDashboard = ({ onLogout }) => {
         approvedStudents: statsData.stats?.approved_students || 110,
         pendingApproval: statsData.stats?.pending_students || 35,
         placementRate: statsData.stats?.placement_rate || 78,
-        departmentInfo: statsData.department,
-        hodProfile: statsData.hod_profile,
+        departmentInfo: statsData.department || prev.departmentInfo,
+        hodProfile: statsData.hod_profile || prev.hodProfile,
         name: statsData.hod_profile ? `${statsData.hod_profile.first_name} ${statsData.hod_profile.last_name}` : prev.name,
         department: statsData.department ? statsData.department.name : prev.department,
         recentActivities: [
@@ -149,32 +177,26 @@ const HODDashboard = ({ onLogout }) => {
         ]
       }));
 
+      // Update dialog data
+      setDialogData(prev => ({
+        ...prev,
+        students: studentsData.students || [],
+        applications: applicationsData.applications || []
+      }));
+
       // Load AI insights
       await loadAIInsights(statsData, studentsData, analyticsData, applicationsData);
-      
+
     } catch (err) {
       console.error('Error loading dashboard data:', err);
       setError('Failed to load dashboard data. Using fallback data.');
-      
-      // Set fallback data for error-free operation
-      setHodData(prev => ({
-        ...prev,
-        totalStudents: 145,
-        approvedStudents: 110,
-        pendingApproval: 35,
-        placementRate: 78,
-        recentActivities: [
-          { type: "approval", message: "Using fallback data - 35 students pending", time: "Now" },
-          { type: "report", message: "Department placement rate: 78%", time: "Live data" },
-          { type: "analytics", message: "AI insights available", time: "Just now" }
-        ]
-      }));
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const loadAIInsights = async (statsData, studentsData, analyticsData, applicationsData) => {
+  // Load AI insights
+  const loadAIInsights = useCallback(async (statsData, studentsData, analyticsData, applicationsData) => {
     try {
       // Load department insights
       const departmentInsights = await hodService.getDepartmentInsights(statsData);
@@ -194,88 +216,66 @@ const HODDashboard = ({ onLogout }) => {
 
     } catch (err) {
       console.error('Error loading AI insights:', err);
-      // Set fallback AI insights
-      setAiInsights({
-        department: {
-          performance_score: 85,
-          trends: 'positive',
-          top_strengths: ['High placement rate', 'Good student engagement'],
-          improvement_areas: ['Industry partnerships', 'Skill gap analysis'],
-          recommendations: ['Increase collaboration', 'Enhance programs', 'Focus on training']
-        },
-        students: {
-          cohort_performance: 82,
-          risk_students: 5,
-          high_performers: 15,
-          avg_cgpa: 7.8,
-          placement_readiness: 75,
-          key_insights: ['Strong technical skills', 'Need soft skills work', 'Good engagement']
-        },
-        predictions: {
-          next_quarter_placements: 45,
-          target_achievement: 85,
-          success_rate: 78,
-          confidence_score: 82,
-          key_factors: ['Student preparation', 'Industry demand', 'Skills alignment'],
-          recommendations: ['Focus on skill development', 'Increase partnerships', 'Improve training']
-        },
-        reports: {
-          report_score: 88,
-          key_metrics: ['Placement rate', 'Student satisfaction', 'Industry feedback'],
-          trends: 'improving',
-          recommendations: ['Focus on underperforming areas', 'Highlight successes', 'Set realistic targets']
-        }
-      });
+      // Keep fallback data
     }
-  };
+  }, []);
 
+  // Initialize data on component mount
+  useEffect(() => {
+    loadDashboardData();
+  }, [loadDashboardData]);
+
+  // Handle quick actions
   const handleQuickAction = async (actionType) => {
-    setDialogLoading(true);
+    setDialogData(prev => ({ ...prev, loading: true }));
 
     try {
       switch (actionType) {
         case 'student-management':
-          // Load students data for management
-          const studentsResponse = await hodService.getDepartmentStudents();
-          setStudentsData(studentsResponse.students || []);
-          setSelectedStudents([]);
-          setStudentDialogOpen(true);
+          setDialogStates(prev => ({ ...prev, studentManagement: true }));
           break;
         case 'analytics':
-          setAnalyticsDialogOpen(true);
+          setDialogStates(prev => ({ ...prev, analytics: true }));
           break;
         case 'reports':
-          setReportsDialogOpen(true);
+          setDialogStates(prev => ({ ...prev, reports: true }));
           break;
         case 'profiles':
-          setProfilesDialogOpen(true);
+          setDialogStates(prev => ({ ...prev, profiles: true }));
           break;
         case 'applications':
-          // Load applications data
-          const applicationsResponse = await hodService.getDepartmentApplications();
-          setApplicationsData(applicationsResponse.applications || []);
-          setSelectedApplications([]);
-          setApplicationsDialogOpen(true);
+          setDialogStates(prev => ({ ...prev, applications: true }));
+          break;
+        case 'company-relations':
+          setDialogStates(prev => ({ ...prev, companyRelations: true }));
+          break;
+        case 'schedule-meetings':
+          setDialogStates(prev => ({ ...prev, scheduleMeetings: true }));
+          break;
+        case 'department-settings':
+          setDialogStates(prev => ({ ...prev, departmentSettings: true }));
           break;
         default:
           console.log('Unknown action:', actionType);
       }
     } catch (err) {
       console.error('Error handling quick action:', err);
+      setError('Failed to open dialog. Please try again.');
     } finally {
-      setDialogLoading(false);
+      setDialogData(prev => ({ ...prev, loading: false }));
     }
   };
 
+  // Handle bulk approval
   const handleBulkApproval = async () => {
-    if (selectedStudents.length === 0) {
+    if (dialogData.selectedStudents.length === 0) {
       alert('Please select students to approve');
       return;
     }
 
-    setBulkApprovalLoading(true);
+    setDialogData(prev => ({ ...prev, loading: true }));
     try {
-      const approvalPromises = selectedStudents.map(studentId =>
+      const approvalPromises = dialogData.selectedStudents.map(studentId =>
         hodService.approveStudent(studentId)
       );
 
@@ -283,43 +283,38 @@ const HODDashboard = ({ onLogout }) => {
 
       // Refresh data
       await loadDashboardData();
-      setSelectedStudents([]);
-      alert(`Successfully approved ${selectedStudents.length} students!`);
+      setDialogData(prev => ({ ...prev, selectedStudents: [] }));
+      alert(`Successfully approved ${dialogData.selectedStudents.length} students!`);
     } catch (error) {
       console.error('Bulk approval error:', error);
       alert('Error approving students. Please try again.');
     } finally {
-      setBulkApprovalLoading(false);
+      setDialogData(prev => ({ ...prev, loading: false }));
     }
   };
 
+  // Handle student selection
   const handleStudentSelection = (studentId) => {
-    setSelectedStudents(prev =>
-      prev.includes(studentId)
-        ? prev.filter(id => id !== studentId)
-        : [...prev, studentId]
-    );
+    setDialogData(prev => ({
+      ...prev,
+      selectedStudents: prev.selectedStudents.includes(studentId)
+        ? prev.selectedStudents.filter(id => id !== studentId)
+        : [...prev.selectedStudents, studentId]
+    }));
   };
 
+  // Handle application selection
   const handleApplicationSelection = (applicationId) => {
-    setSelectedApplications(prev =>
-      prev.includes(applicationId)
-        ? prev.filter(id => id !== applicationId)
-        : [...prev, applicationId]
-    );
+    setDialogData(prev => ({
+      ...prev,
+      selectedApplications: prev.selectedApplications.includes(applicationId)
+        ? prev.selectedApplications.filter(id => id !== applicationId)
+        : [...prev.selectedApplications, applicationId]
+    }));
   };
 
+  // Quick actions configuration
   const quickActions = [
-    {
-      title: "Student Management",
-      description: `AI-powered management of ${hodData.pendingApproval} pending approvals`,
-      icon: <People sx={{ fontSize: 40, color: 'white' }} />,
-      color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      action: () => handleQuickAction('student-management'),
-      aiData: `Risk Students: ${aiInsights.students?.risk_students || 0} | High Performers: ${aiInsights.students?.high_performers || 0}`,
-      gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      shadow: '0 8px 32px rgba(102, 126, 234, 0.3)'
-    },
     {
       title: "Analytics",
       description: `Live department insights (${aiInsights.department?.performance_score || 85}% performance score)`,
@@ -329,6 +324,16 @@ const HODDashboard = ({ onLogout }) => {
       aiData: `Trend: ${aiInsights.department?.trends || 'positive'} | Readiness: ${aiInsights.students?.placement_readiness || 75}%`,
       gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
       shadow: '0 8px 32px rgba(240, 147, 251, 0.3)'
+    },
+    {
+      title: "Applications",
+      description: `View all student applications and placement status`,
+      icon: <Work sx={{ fontSize: 40, color: 'white' }} />,
+      color: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+      action: () => handleQuickAction('applications'),
+      aiData: `Active Applications: ${hodData.totalStudents * 2 || 0} | Success Rate: ${hodData.placementRate || 78}%`,
+      gradient: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+      shadow: '0 8px 32px rgba(250, 112, 154, 0.3)'
     },
     {
       title: "Reports",
@@ -341,6 +346,16 @@ const HODDashboard = ({ onLogout }) => {
       shadow: '0 8px 32px rgba(79, 172, 254, 0.3)'
     },
     {
+      title: "Student Management",
+      description: `AI-powered management of ${hodData.pendingApproval} pending approvals`,
+      icon: <People sx={{ fontSize: 40, color: 'white' }} />,
+      color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      action: () => handleQuickAction('student-management'),
+      aiData: `Risk Students: ${aiInsights.students?.risk_students || 0} | High Performers: ${aiInsights.students?.high_performers || 0}`,
+      gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      shadow: '0 8px 32px rgba(102, 126, 234, 0.3)'
+    },
+    {
       title: "Student Profiles",
       description: `AI-enhanced profile management (${aiInsights.students?.avg_cgpa || 7.8} avg CGPA)`,
       icon: <School sx={{ fontSize: 40, color: 'white' }} />,
@@ -351,26 +366,52 @@ const HODDashboard = ({ onLogout }) => {
       shadow: '0 8px 32px rgba(67, 233, 123, 0.3)'
     },
     {
-      title: "Applications",
-      description: `View all student applications and placement status`,
-      icon: <Work sx={{ fontSize: 40, color: 'white' }} />,
-      color: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-      action: () => handleQuickAction('applications'),
-      aiData: `Active Applications: ${hodData.totalStudents * 2 || 0} | Success Rate: ${hodData.placementRate || 78}%`,
-      gradient: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-      shadow: '0 8px 32px rgba(250, 112, 154, 0.3)'
+      title: "Company Relations",
+      description: `Manage partnerships and industry connections`,
+      icon: <Business sx={{ fontSize: 40, color: 'white' }} />,
+      color: 'linear-gradient(135deg, #ff6b6b 0%, #ffa500 100%)',
+      action: () => handleQuickAction('company-relations'),
+      aiData: `Active Partnerships: ${Math.floor(hodData.totalStudents / 10) || 1} | Industry Reach: ${Math.floor(hodData.placementRate * 0.8) || 62}%`,
+      gradient: 'linear-gradient(135deg, #ff6b6b 0%, #ffa500 100%)',
+      shadow: '0 8px 32px rgba(255, 107, 107, 0.3)'
+    },
+    {
+      title: "Schedule Meetings",
+      description: `Plan department meetings and events`,
+      icon: <Schedule sx={{ fontSize: 40, color: 'white' }} />,
+      color: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+      action: () => handleQuickAction('schedule-meetings'),
+      aiData: `Upcoming: ${Math.floor(Math.random() * 3) + 1} meetings | This Month: ${Math.floor(Math.random() * 5) + 2} events`,
+      gradient: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+      shadow: '0 8px 32px rgba(168, 237, 234, 0.3)'
+    },
+    {
+      title: "Department Settings",
+      description: `Configure department preferences and policies`,
+      icon: <Settings sx={{ fontSize: 40, color: 'white' }} />,
+      color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      action: () => handleQuickAction('department-settings'),
+      aiData: `Last Updated: ${new Date().toLocaleDateString()} | Config Score: ${Math.floor(Math.random() * 20) + 80}%`,
+      gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      shadow: '0 8px 32px rgba(102, 126, 234, 0.3)'
     }
   ];
 
+  // Dialog Components
   const StudentManagementDialog = () => (
-    <Dialog open={studentDialogOpen} onClose={() => setStudentDialogOpen(false)} maxWidth="lg" fullWidth>
+    <Dialog
+      open={dialogStates.studentManagement}
+      onClose={() => setDialogStates(prev => ({ ...prev, studentManagement: false }))}
+      maxWidth="lg"
+      fullWidth
+    >
       <DialogTitle>
         <Box display="flex" alignItems="center" justifyContent="space-between">
           <Box display="flex" alignItems="center" gap={2}>
             <People color="primary" />
             AI-Powered Student Management
             <Chip
-              label={`${selectedStudents.length} Selected`}
+              label={`${dialogData.selectedStudents.length} Selected`}
               color="primary"
               size="small"
             />
@@ -383,7 +424,7 @@ const HODDashboard = ({ onLogout }) => {
         </Box>
       </DialogTitle>
       <DialogContent>
-        {dialogLoading ? (
+        {dialogData.loading ? (
           <Box display="flex" justifyContent="center" p={3}>
             <CircularProgress />
           </Box>
@@ -409,13 +450,13 @@ const HODDashboard = ({ onLogout }) => {
                   color: 'white',
                   transition: 'all 0.3s ease',
                   '&:hover': { transform: 'translateY(-4px)', boxShadow: '0 8px 25px rgba(76, 175, 80, 0.3)' }
-                }} onClick={handleBulkApproval} disabled={bulkApprovalLoading}>
+                }} onClick={handleBulkApproval} disabled={dialogData.loading}>
                   <CheckCircle sx={{ fontSize: 40, mb: 1 }} />
                   <Typography variant="h6">Bulk Approve Selected</Typography>
                   <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                    {bulkApprovalLoading ? 'Processing...' : `Approve ${selectedStudents.length} selected students`}
+                    {dialogData.loading ? 'Processing...' : `Approve ${dialogData.selectedStudents.length} selected students`}
                   </Typography>
-                  {bulkApprovalLoading && <CircularProgress size={20} sx={{ mt: 1 }} />}
+                  {dialogData.loading && <CircularProgress size={20} sx={{ mt: 1 }} />}
                 </Paper>
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -441,19 +482,19 @@ const HODDashboard = ({ onLogout }) => {
             <Typography variant="h6" gutterBottom sx={{ mb: 2 }}>Student List</Typography>
             <Box sx={{ maxHeight: 400, overflow: 'auto' }}>
               <List>
-                {studentsData.map((student) => (
+                {dialogData.students.map((student) => (
                   <ListItem key={student.user_id} sx={{
                     borderRadius: 2,
                     mb: 1,
-                    background: selectedStudents.includes(student.user_id)
+                    background: dialogData.selectedStudents.includes(student.user_id)
                       ? 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)'
                       : 'linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%)',
-                    border: selectedStudents.includes(student.user_id) ? '2px solid #2196f3' : '1px solid #ddd',
+                    border: dialogData.selectedStudents.includes(student.user_id) ? '2px solid #2196f3' : '1px solid #ddd',
                     transition: 'all 0.3s ease',
                     '&:hover': { transform: 'translateX(8px)' }
                   }}>
                     <ListItemAvatar>
-                      <Avatar sx={{ bgcolor: selectedStudents.includes(student.user_id) ? 'primary.main' : 'grey.500' }}>
+                      <Avatar sx={{ bgcolor: dialogData.selectedStudents.includes(student.user_id) ? 'primary.main' : 'grey.500' }}>
                         {student.first_name?.[0]}{student.last_name?.[0]}
                       </Avatar>
                     </ListItemAvatar>
@@ -462,12 +503,12 @@ const HODDashboard = ({ onLogout }) => {
                       secondary={`ID: ${student.student_id} | CGPA: ${student.cgpa || 'N/A'} | Status: ${student.is_active ? 'Active' : 'Inactive'}`}
                     />
                     <Button
-                      variant={selectedStudents.includes(student.user_id) ? "contained" : "outlined"}
+                      variant={dialogData.selectedStudents.includes(student.user_id) ? "contained" : "outlined"}
                       size="small"
                       onClick={() => handleStudentSelection(student.user_id)}
                       sx={{ mr: 1 }}
                     >
-                      {selectedStudents.includes(student.user_id) ? 'Selected' : 'Select'}
+                      {dialogData.selectedStudents.includes(student.user_id) ? 'Selected' : 'Select'}
                     </Button>
                     {!student.is_active && (
                       <Chip label="Pending Approval" color="warning" size="small" />
@@ -499,24 +540,29 @@ const HODDashboard = ({ onLogout }) => {
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={() => setStudentDialogOpen(false)}>Close</Button>
+        <Button onClick={() => setDialogStates(prev => ({ ...prev, studentManagement: false }))}>Close</Button>
         <Button
           variant="contained"
           onClick={handleBulkApproval}
-          disabled={selectedStudents.length === 0 || bulkApprovalLoading}
+          disabled={dialogData.selectedStudents.length === 0 || dialogData.loading}
           sx={{
             background: 'linear-gradient(135deg, #4caf50 0%, #66bb6a 100%)',
             '&:hover': { background: 'linear-gradient(135deg, #388e3c 0%, #4caf50 100%)' }
           }}
         >
-          {bulkApprovalLoading ? <CircularProgress size={20} /> : `Approve ${selectedStudents.length} Students`}
+          {dialogData.loading ? <CircularProgress size={20} /> : `Approve ${dialogData.selectedStudents.length} Students`}
         </Button>
       </DialogActions>
     </Dialog>
   );
 
   const AnalyticsDialog = () => (
-    <Dialog open={analyticsDialogOpen} onClose={() => setAnalyticsDialogOpen(false)} maxWidth="lg" fullWidth>
+    <Dialog
+      open={dialogStates.analytics}
+      onClose={() => setDialogStates(prev => ({ ...prev, analytics: false }))}
+      maxWidth="lg"
+      fullWidth
+    >
       <DialogTitle>
         <Box display="flex" alignItems="center" gap={2}>
           <Analytics color="primary" />
@@ -529,7 +575,7 @@ const HODDashboard = ({ onLogout }) => {
         </Box>
       </DialogTitle>
       <DialogContent>
-        {dialogLoading ? (
+        {dialogData.loading ? (
           <Box display="flex" justifyContent="center" p={3}>
             <CircularProgress />
           </Box>
@@ -572,7 +618,7 @@ const HODDashboard = ({ onLogout }) => {
                   </CardContent>
                 </Card>
               </Grid>
-              
+
               <Grid item xs={12} md={6}>
                 <Card>
                   <CardContent>
@@ -623,8 +669,8 @@ const HODDashboard = ({ onLogout }) => {
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={() => setAnalyticsDialogOpen(false)}>Close</Button>
-        <Button variant="contained" onClick={() => setAnalyticsDialogOpen(false)}>
+        <Button onClick={() => setDialogStates(prev => ({ ...prev, analytics: false }))}>Close</Button>
+        <Button variant="contained" onClick={() => setDialogStates(prev => ({ ...prev, analytics: false }))}>
           View Detailed Report
         </Button>
       </DialogActions>
@@ -632,7 +678,12 @@ const HODDashboard = ({ onLogout }) => {
   );
 
   const ReportsDialog = () => (
-    <Dialog open={reportsDialogOpen} onClose={() => setReportsDialogOpen(false)} maxWidth="md" fullWidth>
+    <Dialog
+      open={dialogStates.reports}
+      onClose={() => setDialogStates(prev => ({ ...prev, reports: false }))}
+      maxWidth="md"
+      fullWidth
+    >
       <DialogTitle>
         <Box display="flex" alignItems="center" gap={2}>
           <Assessment color="primary" />
@@ -645,7 +696,7 @@ const HODDashboard = ({ onLogout }) => {
         </Box>
       </DialogTitle>
       <DialogContent>
-        {dialogLoading ? (
+        {dialogData.loading ? (
           <Box display="flex" justifyContent="center" p={3}>
             <CircularProgress />
           </Box>
@@ -747,8 +798,8 @@ const HODDashboard = ({ onLogout }) => {
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={() => setReportsDialogOpen(false)}>Close</Button>
-        <Button variant="contained" onClick={() => setReportsDialogOpen(false)}>
+        <Button onClick={() => setDialogStates(prev => ({ ...prev, reports: false }))}>Close</Button>
+        <Button variant="contained" onClick={() => setDialogStates(prev => ({ ...prev, reports: false }))}>
           Generate Custom Report
         </Button>
       </DialogActions>
@@ -756,7 +807,12 @@ const HODDashboard = ({ onLogout }) => {
   );
 
   const ProfilesDialog = () => (
-    <Dialog open={profilesDialogOpen} onClose={() => setProfilesDialogOpen(false)} maxWidth="md" fullWidth>
+    <Dialog
+      open={dialogStates.profiles}
+      onClose={() => setDialogStates(prev => ({ ...prev, profiles: false }))}
+      maxWidth="md"
+      fullWidth
+    >
       <DialogTitle>
         <Box display="flex" alignItems="center" gap={2}>
           <School color="primary" />
@@ -769,7 +825,7 @@ const HODDashboard = ({ onLogout }) => {
         </Box>
       </DialogTitle>
       <DialogContent>
-        {dialogLoading ? (
+        {dialogData.loading ? (
           <Box display="flex" justifyContent="center" p={3}>
             <CircularProgress />
           </Box>
@@ -902,8 +958,8 @@ const HODDashboard = ({ onLogout }) => {
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={() => setProfilesDialogOpen(false)}>Close</Button>
-        <Button variant="contained" onClick={() => setProfilesDialogOpen(false)}>
+        <Button onClick={() => setDialogStates(prev => ({ ...prev, profiles: false }))}>Close</Button>
+        <Button variant="contained" onClick={() => setDialogStates(prev => ({ ...prev, profiles: false }))}>
           View Detailed Profiles
         </Button>
       </DialogActions>
@@ -911,21 +967,26 @@ const HODDashboard = ({ onLogout }) => {
   );
 
   const ApplicationsDialog = () => (
-    <Dialog open={applicationsDialogOpen} onClose={() => setApplicationsDialogOpen(false)} maxWidth="xl" fullWidth>
+    <Dialog
+      open={dialogStates.applications}
+      onClose={() => setDialogStates(prev => ({ ...prev, applications: false }))}
+      maxWidth="xl"
+      fullWidth
+    >
       <DialogTitle>
         <Box display="flex" alignItems="center" justifyContent="space-between">
           <Box display="flex" alignItems="center" gap={2}>
             <Work color="primary" />
             Student Applications Overview
             <Chip
-              label={`${applicationsData.length} Applications`}
+              label={`${dialogData.applications.length} Applications`}
               color="primary"
               size="small"
             />
           </Box>
           <Box display="flex" gap={1}>
             <Chip
-              label={`${selectedApplications.length} Selected`}
+              label={`${dialogData.selectedApplications.length} Selected`}
               color="secondary"
               size="small"
             />
@@ -938,7 +999,7 @@ const HODDashboard = ({ onLogout }) => {
         </Box>
       </DialogTitle>
       <DialogContent>
-        {dialogLoading ? (
+        {dialogData.loading ? (
           <Box display="flex" justifyContent="center" p={3}>
             <CircularProgress />
           </Box>
@@ -946,7 +1007,7 @@ const HODDashboard = ({ onLogout }) => {
           <Box>
             <Alert severity="success" sx={{ mb: 3, borderRadius: 2, background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)', color: 'white' }}>
               <Typography variant="body2">
-                <strong>Applications Summary:</strong> {applicationsData.length} total applications |
+                <strong>Applications Summary:</strong> {dialogData.applications.length} total applications |
                 Success Rate: {hodData.placementRate || 78}% |
                 Department: {hodData.department}
               </Typography>
@@ -966,7 +1027,7 @@ const HODDashboard = ({ onLogout }) => {
                 }}>
                   <CheckCircle sx={{ fontSize: 30, mb: 1 }} />
                   <Typography variant="h6">Accepted</Typography>
-                  <Typography variant="h4">{applicationsData.filter(app => app.application_status === 'accepted').length}</Typography>
+                  <Typography variant="h4">{dialogData.applications.filter(app => app.application_status === 'accepted').length}</Typography>
                 </Paper>
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
@@ -978,10 +1039,11 @@ const HODDashboard = ({ onLogout }) => {
                   color: 'white',
                   transition: 'all 0.3s ease',
                   '&:hover': { transform: 'translateY(-4px)', boxShadow: '0 8px 25px rgba(33, 150, 243, 0.3)' }
-                }}>
-                  <Schedule sx={{ fontSize: 30, mb: 1 }} />
-                  <Typography variant="h6">Under Review</Typography>
-                  <Typography variant="h4">{applicationsData.filter(app => app.application_status === 'under_review').length}</Typography>
+
+}}>
+                  <CheckCircle sx={{ fontSize: 30, mb: 1 }} />
+                  <Typography variant="h6">Pending</Typography>
+                  <Typography variant="h4">{dialogData.applications.filter(app => app.application_status === 'pending').length}</Typography>
                 </Paper>
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
@@ -995,8 +1057,8 @@ const HODDashboard = ({ onLogout }) => {
                   '&:hover': { transform: 'translateY(-4px)', boxShadow: '0 8px 25px rgba(255, 152, 0, 0.3)' }
                 }}>
                   <Assignment sx={{ fontSize: 30, mb: 1 }} />
-                  <Typography variant="h6">Interview</Typography>
-                  <Typography variant="h4">{applicationsData.filter(app => app.application_status === 'interview_scheduled').length}</Typography>
+                  <Typography variant="h6">Rejected</Typography>
+                  <Typography variant="h4">{dialogData.applications.filter(app => app.application_status === 'rejected').length}</Typography>
                 </Paper>
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
@@ -1004,802 +1066,289 @@ const HODDashboard = ({ onLogout }) => {
                   p: 2,
                   textAlign: 'center',
                   borderRadius: 3,
-                  background: 'linear-gradient(135deg, #f44336 0%, #e57373 100%)',
+                  background: 'linear-gradient(135deg, #9c27b0 0%, #ba68c8 100%)',
                   color: 'white',
                   transition: 'all 0.3s ease',
-                  '&:hover': { transform: 'translateY(-4px)', boxShadow: '0 8px 25px rgba(244, 67, 54, 0.3)' }
+                  '&:hover': { transform: 'translateY(-4px)', boxShadow: '0 8px 25px rgba(156, 39, 176, 0.3)' }
                 }}>
-                  <VerifiedUser sx={{ fontSize: 30, mb: 1 }} />
-                  <Typography variant="h6">Rejected</Typography>
-                  <Typography variant="h4">{applicationsData.filter(app => app.application_status === 'rejected').length}</Typography>
+                  <Schedule sx={{ fontSize: 30, mb: 1 }} />
+                  <Typography variant="h6">Under Review</Typography>
+                  <Typography variant="h4">{dialogData.applications.filter(app => app.application_status === 'under_review').length}</Typography>
                 </Paper>
               </Grid>
             </Grid>
 
-            <Typography variant="h6" gutterBottom sx={{ mb: 2 }}>All Applications</Typography>
-            <Box sx={{ maxHeight: 500, overflow: 'auto' }}>
+            <Typography variant="h6" gutterBottom>Application List</Typography>
+            <Box sx={{ maxHeight: 400, overflow: 'auto' }}>
               <List>
-                {applicationsData.map((application) => (
-                  <ListItem key={application.id} sx={{
+                {dialogData.applications.map((application) => (
+                  <ListItem key={application.application_id} sx={{
                     borderRadius: 2,
                     mb: 1,
-                    background: selectedApplications.includes(application.id)
+                    background: dialogData.selectedApplications.includes(application.application_id)
                       ? 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)'
                       : 'linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%)',
-                    border: selectedApplications.includes(application.id) ? '2px solid #2196f3' : '1px solid #ddd',
+                    border: dialogData.selectedApplications.includes(application.application_id) ? '2px solid #2196f3' : '1px solid #ddd',
                     transition: 'all 0.3s ease',
                     '&:hover': { transform: 'translateX(8px)' }
                   }}>
                     <ListItemAvatar>
-                      <Avatar sx={{ bgcolor: selectedApplications.includes(application.id) ? 'primary.main' : 'grey.500' }}>
-                        {application.student?.first_name?.[0]}{application.student?.last_name?.[0]}
+                      <Avatar sx={{ bgcolor: dialogData.selectedApplications.includes(application.application_id) ? 'primary.main' : 'grey.500' }}>
+                        {application.student_name?.[0]}{application.company_name?.[0]}
                       </Avatar>
                     </ListItemAvatar>
                     <ListItemText
-                      primary={
-                        <Box>
-                          <Typography variant="body1" fontWeight="bold">
-                            {application.student?.first_name} {application.student?.last_name}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {application.drive?.title} at {application.drive?.company?.name}
-                          </Typography>
-                        </Box>
-                      }
-                      secondary={
-                        <Box>
-                          <Typography variant="caption">
-                            Applied: {new Date(application.applied_at).toLocaleDateString()} |
-                            CGPA: {application.student?.cgpa || 'N/A'} |
-                            AI Score: {application.ai_score || 'N/A'}
-                          </Typography>
-                        </Box>
-                      }
+                      primary={`${application.student_name} - ${application.company_name}`}
+                      secondary={`Position: ${application.position} | Status: ${application.application_status} | Applied: ${new Date(application.application_date).toLocaleDateString()}`}
                     />
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Chip
-                        label={application.application_status?.replace('_', ' ').toUpperCase()}
-                        color={
-                          application.application_status === 'accepted' ? 'success' :
-                          application.application_status === 'rejected' ? 'error' :
-                          application.application_status === 'under_review' ? 'primary' :
-                          application.application_status === 'interview_scheduled' ? 'warning' : 'default'
-                        }
-                        size="small"
-                      />
-                      <Button
-                        variant={selectedApplications.includes(application.id) ? "contained" : "outlined"}
-                        size="small"
-                        onClick={() => handleApplicationSelection(application.id)}
-                      >
-                        {selectedApplications.includes(application.id) ? 'Selected' : 'Select'}
-                      </Button>
-                    </Box>
+                    <Button
+                      variant={dialogData.selectedApplications.includes(application.application_id) ? "contained" : "outlined"}
+                      size="small"
+                      onClick={() => handleApplicationSelection(application.application_id)}
+                      sx={{ mr: 1 }}
+                    >
+                      {dialogData.selectedApplications.includes(application.application_id) ? 'Selected' : 'Select'}
+                    </Button>
+                    <Chip label={application.application_status} color={application.application_status === 'accepted' ? 'success' : application.application_status === 'rejected' ? 'error' : 'warning'} size="small" />
                   </ListItem>
                 ))}
               </List>
             </Box>
-
-            {selectedApplications.length > 0 && (
-              <Box sx={{ mt: 3, p: 2, background: 'linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%)', borderRadius: 2 }}>
-                <Typography variant="h6" color="warning.main">
-                  Bulk Actions for {selectedApplications.length} Selected Applications
-                </Typography>
-                <Box sx={{ mt: 2, display: 'flex', gap: 1 }}>
-                  <Button variant="contained" color="success" size="small">
-                    Accept Selected
-                  </Button>
-                  <Button variant="contained" color="error" size="small">
-                    Reject Selected
-                  </Button>
-                  <Button variant="contained" color="primary" size="small">
-                    Schedule Interviews
-                  </Button>
-                </Box>
-              </Box>
-            )}
           </Box>
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={() => setApplicationsDialogOpen(false)}>Close</Button>
-        <Button
-          variant="contained"
-          onClick={() => setApplicationsDialogOpen(false)}
-          sx={{
-            background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-            '&:hover': { background: 'linear-gradient(135deg, #f48fb1 0%, #ffcc02 100%)' }
-          }}
-        >
+        <Button onClick={() => setDialogStates(prev => ({ ...prev, applications: false }))}>Close</Button>
+        <Button variant="contained" onClick={() => setDialogStates(prev => ({ ...prev, applications: false }))}>
           Export Applications
         </Button>
       </DialogActions>
     </Dialog>
   );
 
-  if (loading) {
-    return (
-      <div className="glass-card" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
-          <CircularProgress size={60} />
+  // Main render
+  return (
+    <Container maxWidth="xl" sx={{ py: 4 }}>
+      <BackButton />
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
+        <Box>
+          <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+            HOD Dashboard
+          </Typography>
           <Typography variant="h6" color="text.secondary">
-            Loading HOD Dashboard with AI Insights...
+            {hodData.name} - {hodData.department}
           </Typography>
         </Box>
-      </div>
-    );
-  }
-
-  return (
-    <div className="glass-card" style={{ minHeight: '100vh', position: 'relative' }}>
-      <BackButton />
-      {/* AI Data Refresh FAB */}
-      <Fab
-        color="primary"
-        aria-label="refresh"
-        sx={{ position: 'fixed', bottom: 16, right: 16, zIndex: 1000 }}
-        onClick={() => {
-          setRefreshing(true);
-          loadDashboardData().finally(() => setRefreshing(false));
-        }}
-        disabled={refreshing}
-      >
-        {refreshing ? <CircularProgress size={24} color="inherit" /> : <Refresh />}
-      </Fab>
-
-      {/* Header */}
-      <Box sx={{
-        background: 'linear-gradient(135deg, #ff9800 0%, #ff5722 100%)',
-        color: 'white',
-        p: 3,
-        borderRadius: '0 0 20px 20px',
-        mb: 3,
-        position: 'relative',
-        overflow: 'hidden'
-      }}>
-        <Container maxWidth="lg">
-          <Box sx={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: 2
-          }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-              <Logo size="small" color="white" />
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Avatar sx={{
-                  width: 60,
-                  height: 60,
-                  bgcolor: 'rgba(255,255,255,0.2)',
-                  fontSize: '24px',
-                  animation: 'pulse 2s infinite'
-                }}>
-                  {hodData.name.split(' ').map(n => n[0]).join('')}
-                </Avatar>
-                <Box>
-                  <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 0.5 }}>
-                    Welcome, {hodData.name.split(' ')[0]}!
-                  </Typography>
-                  <Typography variant="body1" sx={{ opacity: 0.9 }}>
-                    {hodData.department} Department Head
-                  </Typography>
-                  {hodData.departmentInfo && (
-                    <Typography variant="body2" sx={{ opacity: 0.8, mt: 0.5 }}>
-                      Department Code: {hodData.departmentInfo.code}
-                    </Typography>
-                  )}
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
-                    <Chip
-                      label={`${aiInsights.department?.performance_score || 85}% AI Performance Score`}
-                      size="small"
-                      sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white' }}
-                    />
-                    <Chip
-                      label={`${aiInsights.predictions?.confidence_score || 82}% Predictions Confidence`}
-                      size="small"
-                      sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white' }}
-                    />
-                  </Box>
-                </Box>
-              </Box>
-            </Box>
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <IconButton
-                sx={{ color: 'white' }}
-                onClick={(event) => setNotificationAnchor(event.currentTarget)}
-              >
-                <Badge badgeContent={2} color="error">
-                  <Notifications />
-                </Badge>
-              </IconButton>
-              <IconButton
-                sx={{ color: 'white' }}
-                onClick={() => navigate('/hod/settings')}
-              >
-                <Settings />
-              </IconButton>
-              <Button
-                variant="outlined"
-                startIcon={<Logout />}
-                onClick={onLogout}
-                sx={{
-                  color: 'white',
-                  borderColor: 'rgba(255,255,255,0.5)',
-                  '&:hover': {
-                    borderColor: 'white',
-                    backgroundColor: 'rgba(255,255,255,0.1)'
-                  }
-                }}
-              >
-                Logout
-              </Button>
-            </Box>
-          </Box>
-        </Container>
-        
-        {/* AI Data Indicator */}
-        <Box sx={{
-          position: 'absolute',
-          top: 10,
-          right: 20,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
-          bgcolor: 'rgba(255,255,255,0.1)',
-          borderRadius: 2,
-          px: 2,
-          py: 1
-        }}>
-          <Box sx={{
-            width: 8,
-            height: 8,
-            borderRadius: '50%',
-            bgcolor: '#4caf50',
-            animation: 'pulse 2s infinite'
-          }} />
-          <Typography variant="caption" sx={{ color: 'white' }}>
-            AI Live Data Active
-          </Typography>
+        <Box display="flex" alignItems="center" gap={2}>
+          <IconButton
+            onClick={(event) => setNotificationAnchor(event.currentTarget)}
+            sx={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              '&:hover': { background: 'linear-gradient(135deg, #5a6fd8 0%, #6a5acd 100%)' }
+            }}
+          >
+            <Badge badgeContent={3} color="error">
+              <Notifications />
+            </Badge>
+          </IconButton>
+          <Button
+            variant="contained"
+            startIcon={<Refresh />}
+            onClick={() => loadDashboardData()}
+            disabled={refreshing}
+            sx={{
+              background: 'linear-gradient(135deg, #4caf50 0%, #66bb6a 100%)',
+              '&:hover': { background: 'linear-gradient(135deg, #388e3c 0%, #4caf50 100%)' }
+            }}
+          >
+            {refreshing ? <CircularProgress size={20} /> : 'Refresh'}
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<Logout />}
+            onClick={onLogout}
+            sx={{ borderColor: '#f44336', color: '#f44336', '&:hover': { borderColor: '#d32f2f', backgroundColor: '#ffebee' } }}
+          >
+            Logout
+          </Button>
         </Box>
       </Box>
 
-      <Container maxWidth="lg">
-        {/* Error Alert */}
-        {error && (
-          <Alert severity="warning" sx={{ mb: 3 }}>
-            {error}
-          </Alert>
-        )}
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+      )}
 
-        {/* Stats Cards with AI Integration */}
-        <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={6} md={3}>
-            <Paper elevation={8} className="animated-card" sx={{
-              borderRadius: 4,
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              color: 'white',
-              position: 'relative',
-              overflow: 'hidden',
-              '&::before': {
-                content: '""',
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
-                opacity: 0,
-                transition: 'opacity 0.3s ease',
-              },
-              '&:hover::before': {
-                opacity: 1
-              }
-            }}>
-              <CardContent sx={{ textAlign: 'center', position: 'relative', zIndex: 1 }}>
-                <Box sx={{
-                  width: 60,
-                  height: 60,
-                  borderRadius: '50%',
-                  background: 'rgba(255,255,255,0.2)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto 16px',
-                  animation: 'pulse 2s infinite',
-                  backdropFilter: 'blur(10px)'
-                }}>
-                  <People sx={{ color: 'white', fontSize: 30 }} />
-                </Box>
-                <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
-                  {hodData.totalStudents}
-                </Typography>
-                <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                  Total Students
-                </Typography>
-                <LinearProgress
-                  variant="determinate"
-                  value={100}
-                  sx={{ mt: 1, borderRadius: 5, backgroundColor: 'rgba(255,255,255,0.2)' }}
-                />
-                <Typography variant="caption" sx={{ mt: 1, display: 'block', opacity: 0.8 }}>
-                  {aiInsights.students?.cohort_performance || 82}% Cohort Performance
-                </Typography>
-              </CardContent>
-            </Paper>
-          </Grid>
-          
-          <Grid item xs={12} sm={6} md={3}>
-            <Paper elevation={8} className="animated-card" sx={{
-              borderRadius: 4,
-              background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-              color: 'white',
-              position: 'relative',
-              overflow: 'hidden',
-              '&::before': {
-                content: '""',
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
-                opacity: 0,
-                transition: 'opacity 0.3s ease',
-              },
-              '&:hover::before': {
-                opacity: 1
-              }
-            }}>
-              <CardContent sx={{ textAlign: 'center', position: 'relative', zIndex: 1 }}>
-                <Box sx={{
-                  width: 60,
-                  height: 60,
-                  borderRadius: '50%',
-                  background: 'rgba(255,255,255,0.2)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto 16px',
-                  animation: 'pulse 2s infinite',
-                  backdropFilter: 'blur(10px)'
-                }}>
-                  <CheckCircle sx={{ color: 'white', fontSize: 30 }} />
-                </Box>
-                <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
-                  {hodData.approvedStudents}
-                </Typography>
-                <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                  Approved Students
-                </Typography>
-                <LinearProgress
-                  variant="determinate"
-                  value={(hodData.approvedStudents / hodData.totalStudents) * 100}
-                  sx={{ mt: 1, borderRadius: 5, backgroundColor: 'rgba(255,255,255,0.2)' }}
-                />
-                <Typography variant="caption" sx={{ mt: 1, display: 'block', opacity: 0.8 }}>
-                  {aiInsights.students?.high_performers || 15} High Performers Identified
-                </Typography>
-              </CardContent>
-            </Paper>
-          </Grid>
-          
-          <Grid item xs={12} sm={6} md={3}>
-            <Paper elevation={8} className="animated-card" sx={{
-              borderRadius: 4,
-              background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-              color: 'white',
-              position: 'relative',
-              overflow: 'hidden',
-              '&::before': {
-                content: '""',
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
-                opacity: 0,
-                transition: 'opacity 0.3s ease',
-              },
-              '&:hover::before': {
-                opacity: 1
-              }
-            }}>
-              <CardContent sx={{ textAlign: 'center', position: 'relative', zIndex: 1 }}>
-                <Box sx={{
-                  width: 60,
-                  height: 60,
-                  borderRadius: '50%',
-                  background: 'rgba(255,255,255,0.2)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto 16px',
-                  animation: 'pulse 2s infinite',
-                  backdropFilter: 'blur(10px)'
-                }}>
-                  <Assignment sx={{ color: 'white', fontSize: 30 }} />
-                </Box>
-                <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
-                  {hodData.pendingApproval}
-                </Typography>
-                <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                  Pending Approval
-                </Typography>
-                <Chip
-                  label={`${aiInsights.students?.risk_students || 5} at-risk`}
-                  size="small"
-                  sx={{
-                    mt: 1,
-                    bgcolor: 'rgba(255,255,255,0.25)',
-                    color: 'white',
-                    fontWeight: 'bold',
-                    backdropFilter: 'blur(10px)',
-                    border: '1px solid rgba(255,255,255,0.3)'
-                  }}
-                />
-                <Typography variant="caption" sx={{ mt: 1, display: 'block', opacity: 0.8 }}>
-                  AI Flagged for Attention
-                </Typography>
-              </CardContent>
-            </Paper>
-          </Grid>
-          
-          <Grid item xs={12} sm={6} md={3}>
-            <Paper elevation={8} className="animated-card" sx={{
-              borderRadius: 4,
-              background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-              color: 'white',
-              position: 'relative',
-              overflow: 'hidden',
-              '&::before': {
-                content: '""',
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
-                opacity: 0,
-                transition: 'opacity 0.3s ease',
-              },
-              '&:hover::before': {
-                opacity: 1
-              }
-            }}>
-              <CardContent sx={{ textAlign: 'center', position: 'relative', zIndex: 1 }}>
-                <Box sx={{
-                  width: 60,
-                  height: 60,
-                  borderRadius: '50%',
-                  background: 'rgba(255,255,255,0.2)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto 16px',
-                  animation: 'pulse 2s infinite',
-                  backdropFilter: 'blur(10px)'
-                }}>
-                  <TrendingUp sx={{ color: 'white', fontSize: 30 }} />
-                </Box>
-                <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
-                  {hodData.placementRate}%
-                </Typography>
-                <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                  Placement Rate
-                </Typography>
-                <LinearProgress
-                  variant="determinate"
-                  value={hodData.placementRate}
-                  sx={{
-                    mt: 1,
-                    borderRadius: 5,
-                    backgroundColor: 'rgba(255,255,255,0.2)',
-                    '& .MuiLinearProgress-bar': {
-                      backgroundColor: 'white'
-                    }
-                  }}
-                />
-                <Typography variant="caption" sx={{ mt: 1, display: 'block', opacity: 0.8 }}>
-                  {aiInsights.predictions?.next_quarter_placements || 45} Next Quarter Predicted
-                </Typography>
-              </CardContent>
-            </Paper>
-          </Grid>
-        </Grid>
-
-        {/* AI-Powered Quick Actions Grid */}
-        <Typography variant="h5" sx={{ mb: 3, fontWeight: 'bold', color: '#333', display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Speed color="primary" />
-          AI-Powered Quick Actions
-        </Typography>
-        <Grid container spacing={3} sx={{ mb: 4 }}>
-          {quickActions.map((action, index) => (
-            <Grid item xs={12} sm={6} md={4} lg={2.4} key={index}>
-              <Paper
-                elevation={8}
-                onClick={action.action}
-                sx={{
-                  cursor: 'pointer',
-                  minHeight: 280,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  textAlign: 'center',
-                  background: action.gradient,
-                  color: 'white',
-                  position: 'relative',
-                  overflow: 'hidden',
-                  borderRadius: 4,
-                  transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-                  boxShadow: action.shadow,
-                  '&:hover': {
-                    transform: 'translateY(-8px) scale(1.02)',
-                    boxShadow: `0 20px 40px ${alpha(action.gradient.split(',')[1].split(' ')[0], 0.4)}`,
-                    '& .action-icon': {
-                      transform: 'scale(1.1) rotate(5deg)',
-                      transition: 'transform 0.3s ease'
-                    },
-                    '& .action-content': {
-                      transform: 'translateY(-5px)',
-                      transition: 'transform 0.3s ease'
-                    }
-                  },
-                  '&::before': {
-                    content: '""',
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
-                    opacity: 0,
-                    transition: 'opacity 0.3s ease',
-                  },
-                  '&:hover::before': {
-                    opacity: 1
-                  }
-                }}
-              >
-                <Box sx={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: 6,
-                  background: 'linear-gradient(90deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.4) 50%, rgba(255,255,255,0.8) 100%)',
-                  backgroundSize: '200% 100%',
-                  animation: 'shimmer 3s infinite'
-                }} />
-                <Box sx={{ p: 3, position: 'relative', zIndex: 1 }}>
-                  <Box className="action-icon" sx={{ mb: 2, transition: 'transform 0.3s ease' }}>
-                    {action.icon}
+      {loading ? (
+        <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
+          <Box textAlign="center">
+            <CircularProgress size={60} sx={{ mb: 2 }} />
+            <Typography variant="h6">Loading Department Data...</Typography>
+          </Box>
+        </Box>
+      ) : (
+        <Box>
+          <Grid container spacing={3} sx={{ mb: 4 }}>
+            <Grid item xs={12} md={3}>
+              <Card sx={{
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
+                borderRadius: 3,
+                transition: 'all 0.3s ease',
+                '&:hover': { transform: 'translateY(-8px)', boxShadow: '0 12px 40px rgba(102, 126, 234, 0.3)' }
+              }}>
+                <CardContent>
+                  <Box display="flex" alignItems="center" justifyContent="space-between">
+                    <Box>
+                      <Typography variant="h6" gutterBottom>Department</Typography>
+                      <Typography variant="h4">{hodData.department}</Typography>
+                      <Typography variant="body2" sx={{ opacity: 0.9 }}>Code: {hodData.departmentInfo.code}</Typography>
+                    </Box>
+                    <School sx={{ fontSize: 48, opacity: 0.8 }} />
                   </Box>
-                  <Box className="action-content" sx={{ transition: 'transform 0.3s ease' }}>
-                    <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1, fontSize: '1.1rem' }}>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} md={3}>
+              <Card sx={{
+                background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                color: 'white',
+                borderRadius: 3,
+                transition: 'all 0.3s ease',
+                '&:hover': { transform: 'translateY(-8px)', boxShadow: '0 12px 40px rgba(240, 147, 251, 0.3)' }
+              }}>
+                <CardContent>
+                  <Box display="flex" alignItems="center" justifyContent="space-between">
+                    <Box>
+                      <Typography variant="h6" gutterBottom>Total Students</Typography>
+                      <Typography variant="h4">{hodData.totalStudents}</Typography>
+                      <Typography variant="body2" sx={{ opacity: 0.9 }}>Active enrollments</Typography>
+                    </Box>
+                    <People sx={{ fontSize: 48, opacity: 0.8 }} />
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} md={3}>
+              <Card sx={{
+                background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                color: 'white',
+                borderRadius: 3,
+                transition: 'all 0.3s ease',
+                '&:hover': { transform: 'translateY(-8px)', boxShadow: '0 12px 40px rgba(79, 172, 254, 0.3)' }
+              }}>
+                <CardContent>
+                  <Box display="flex" alignItems="center" justifyContent="space-between">
+                    <Box>
+                      <Typography variant="h6" gutterBottom>Placement Rate</Typography>
+                      <Typography variant="h4">{hodData.placementRate}%</Typography>
+                      <Typography variant="body2" sx={{ opacity: 0.9 }}>Current semester</Typography>
+                    </Box>
+                    <TrendingUp sx={{ fontSize: 48, opacity: 0.8 }} />
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} md={3}>
+              <Card sx={{
+                background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+                color: 'white',
+                borderRadius: 3,
+                transition: 'all 0.3s ease',
+                '&:hover': { transform: 'translateY(-8px)', boxShadow: '0 12px 40px rgba(67, 233, 123, 0.3)' }
+              }}>
+                <CardContent>
+                  <Box display="flex" alignItems="center" justifyContent="space-between">
+                    <Box>
+                      <Typography variant="h6" gutterBottom>Pending Approvals</Typography>
+                      <Typography variant="h4">{hodData.pendingApproval}</Typography>
+                      <Typography variant="body2" sx={{ opacity: 0.9 }}>Awaiting review</Typography>
+                    </Box>
+                    <Assignment sx={{ fontSize: 48, opacity: 0.8 }} />
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+
+          <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', mt: 4, mb: 3 }}>
+            Quick Actions
+          </Typography>
+          <Grid container spacing={3}>
+            {quickActions.map((action, index) => (
+              <Grid item xs={12} sm={6} md={4} lg={3} key={index}>
+                <Card
+                  sx={{
+                    cursor: 'pointer',
+                    background: action.gradient,
+                    color: 'white',
+                    borderRadius: 3,
+                    transition: 'all 0.3s ease',
+                    boxShadow: action.shadow,
+                    '&:hover': { transform: 'translateY(-8px)', boxShadow: '0 16px 50px rgba(0,0,0,0.3)' }
+                  }}
+                  onClick={action.action}
+                >
+                  <CardContent sx={{ textAlign: 'center', py: 3 }}>
+                    {action.icon}
+                    <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
                       {action.title}
                     </Typography>
-                    <Typography variant="body2" sx={{ mb: 2, opacity: 0.9, lineHeight: 1.4 }}>
+                    <Typography variant="body2" sx={{ opacity: 0.9, mb: 2 }}>
                       {action.description}
                     </Typography>
-                    <Chip
-                      label={action.aiData}
-                      size="small"
-                      sx={{
-                        bgcolor: 'rgba(255,255,255,0.25)',
-                        color: 'white',
-                        fontSize: '0.7rem',
-                        fontWeight: 'bold',
-                        backdropFilter: 'blur(10px)',
-                        border: '1px solid rgba(255,255,255,0.3)',
-                        '& .MuiChip-label': {
-                          px: 1.5
-                        }
-                      }}
-                    />
-                  </Box>
-                </Box>
-              </Paper>
-            </Grid>
-          ))}
-        </Grid>
+                    <Typography variant="caption" sx={{ opacity: 0.8 }}>
+                      {action.aiData}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
 
-        {/* Recent Activity with AI Insights */}
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={8}>
-            <Card className="animated-card">
-              <CardContent>
-                <Typography variant="h6" sx={{ mb: 3, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Analytics color="primary" />
-                  AI-Enhanced Recent Activity
-                </Typography>
+          <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', mt: 4, mb: 3 }}>
+            Recent Activity
+          </Typography>
+          <Card sx={{ borderRadius: 3 }}>
+            <CardContent>
+              <List>
                 {hodData.recentActivities.map((activity, index) => (
-                  <Box
-                    key={index}
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      mb: 2,
-                      p: 2,
-                      borderRadius: 2,
-                      background: 'rgba(0,0,0,0.02)',
-                      transition: 'all 0.3s ease',
-                      '&:hover': {
-                        background: 'rgba(0,0,0,0.05)',
-                        transform: 'translateX(8px)'
-                      }
-                    }}
-                  >
-                    <Avatar sx={{
-                      width: 40,
-                      height: 40,
-                      bgcolor: 'secondary.main',
-                      mr: 2,
-                      animation: index === 0 ? 'pulse 2s infinite' : 'none'
-                    }}>
-                      {activity.type === 'approval' && <CheckCircle />}
-                      {activity.type === 'report' && <Assessment />}
-                      {activity.type === 'analytics' && <Speed />}
-                    </Avatar>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                        {activity.message}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {activity.time}
-                      </Typography>
-                    </Box>
-                    <Chip
-                      label={activity.type}
-                      size="small"
-                      color="secondary"
-                      variant="outlined"
+                  <ListItem key={index} sx={{
+                    borderRadius: 2,
+                    mb: 1,
+                    background: 'linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%)',
+                    '&:hover': { transform: 'translateX(8px)', transition: 'all 0.3s ease' }
+                  }}>
+                    <ListItemAvatar>
+                      <Avatar sx={{ bgcolor: activity.type === 'approval' ? 'warning.main' : activity.type === 'report' ? 'info.main' : 'success.main' }}>
+                        {activity.type === 'approval' ? <Assignment /> : activity.type === 'report' ? <Assessment /> : <Insights />}
+                      </Avatar>
+                    </ListItemAvatar>
+                    <ListItemText
+                      primary={activity.message}
+                      secondary={activity.time}
                     />
-                  </Box>
+                  </ListItem>
                 ))}
-              </CardContent>
-            </Card>
-          </Grid>
-          
-          <Grid item xs={12} md={4}>
-            <Card className="animated-card">
-              <CardContent>
-                <Typography variant="h6" sx={{ mb: 3, fontWeight: 'bold' }}>
-                  AI Quick Stats
-                </Typography>
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="body2" sx={{ fontWeight: 500, mb: 1 }}>
-                    📈 AI Performance Score
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {aiInsights.department?.performance_score || 85}% - {aiInsights.department?.trends || 'positive'} trend
-                  </Typography>
-                </Box>
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="body2" sx={{ fontWeight: 500, mb: 1 }}>
-                    🎯 AI Predictions
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {aiInsights.predictions?.next_quarter_placements || 45} placements next quarter
-                  </Typography>
-                </Box>
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="body2" sx={{ fontWeight: 500, mb: 1 }}>
-                    ⏰ Risk Analysis
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {aiInsights.students?.risk_students || 5} students flagged by AI
-                  </Typography>
-                </Box>
-                <Box>
-                  <Typography variant="body2" sx={{ fontWeight: 500, mb: 1 }}>
-                    🚀 Recommendations
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {aiInsights.department?.recommendations?.length || 3} AI-powered actions
-                  </Typography>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-      </Container>
-      
-      {/* AI-Powered Dialogs */}
+              </List>
+            </CardContent>
+          </Card>
+        </Box>
+      )}
+
       <StudentManagementDialog />
       <AnalyticsDialog />
       <ReportsDialog />
       <ProfilesDialog />
       <ApplicationsDialog />
-
-      {/* Department Selection Dialog */}
-      <Dialog open={!hodData.departmentInfo} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          color: 'white',
-          textAlign: 'center'
-        }}>
-          <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
-            Select Your Department
-          </Typography>
-        </DialogTitle>
-        <DialogContent sx={{ p: 4, textAlign: 'center' }}>
-          <Typography variant="body1" sx={{ mb: 3, color: 'text.secondary' }}>
-            Please select the department you head to continue to your dashboard.
-          </Typography>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Button
-              variant="contained"
-              size="large"
-              sx={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                '&:hover': { background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)' },
-                py: 2,
-                borderRadius: 3
-              }}
-              onClick={() => {
-                // For demo purposes, set a default department
-                setHodData(prev => ({
-                  ...prev,
-                  departmentInfo: { name: 'Computer Science', code: 'CSE' },
-                  department: 'Computer Science'
-                }));
-              }}
-            >
-              Computer Science Department
-            </Button>
-            <Button
-              variant="contained"
-              size="large"
-              sx={{
-                background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-                '&:hover': { background: 'linear-gradient(135deg, #e083eb 0%, #e5475c 100%)' },
-                py: 2,
-                borderRadius: 3
-              }}
-              onClick={() => {
-                setHodData(prev => ({
-                  ...prev,
-                  departmentInfo: { name: 'Information Technology', code: 'IT' },
-                  department: 'Information Technology'
-                }));
-              }}
-            >
-              Information Technology Department
-            </Button>
-            <Button
-              variant="contained"
-              size="large"
-              sx={{
-                background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-                '&:hover': { background: 'linear-gradient(135deg, #3f9cee 0%, #00e2ee 100%)' },
-                py: 2,
-                borderRadius: 3
-              }}
-              onClick={() => {
-                setHodData(prev => ({
-                  ...prev,
-                  departmentInfo: { name: 'Mechanical Engineering', code: 'ME' },
-                  department: 'Mechanical Engineering'
-                }));
-              }}
-            >
-              Mechanical Engineering Department
-            </Button>
-          </Box>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Notification Panel */}
       <NotificationPanel
-        userRole="hod"
         anchorEl={notificationAnchor}
-        onClose={() => setNotificationAnchor(null)}
         open={notificationOpen}
+        onClose={() => setNotificationAnchor(null)}
       />
-    </div>
+    </Container>
   );
 };
 
