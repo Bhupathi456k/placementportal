@@ -3,6 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from models import db, User, StudentProfile, HodProfile, Department, StudentApplication, PlacementDrive, Company, RoundResult, OfferLetter
 from datetime import datetime, timedelta
 import json
+from sqlalchemy import func
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
@@ -171,11 +172,11 @@ def get_tpo_stats():
         
         # Get today's summary
         today = datetime.utcnow().date()
-        today_applications = StudentApplication.query.filter(
+        today_applications = db.session.query(StudentApplication).filter(
             func.date(StudentApplication.created_at) == today
         ).count()
-        
-        today_drives = PlacementDrive.query.filter(
+
+        today_drives = db.session.query(PlacementDrive).filter(
             func.date(PlacementDrive.created_at) == today
         ).count()
         
@@ -238,6 +239,3 @@ def calculate_student_placement_rate(profile):
     ).count()
     
     return round((successful_applications / total_applications) * 100, 2)
-
-# Add the import for func if not already present
-from sqlalchemy import func

@@ -58,6 +58,7 @@ from routes.tpo_routes import tpo_bp
 from routes.company_routes import company_bp
 from routes.drive_routes import drive_bp
 from routes.dashboard_routes import dashboard_bp
+from routes.ai_routes import ai_routes_bp
 from services.email_service import email_service
 from services.ai_service import ai_service
 from services.file_service import file_service
@@ -71,6 +72,7 @@ app.register_blueprint(tpo_bp, url_prefix='/api/tpo')
 app.register_blueprint(company_bp, url_prefix='/api/companies')
 app.register_blueprint(drive_bp, url_prefix='/api/drives')
 app.register_blueprint(dashboard_bp, url_prefix='/api/dashboard')
+app.register_blueprint(ai_routes_bp, url_prefix='/api/ai')
 
 # Initialize services
 email_service.init_app(app)

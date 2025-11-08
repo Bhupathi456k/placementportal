@@ -309,3 +309,36 @@ def get_available_drives():
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@student_bp.route('/results', methods=['GET'])
+@jwt_required()
+def get_student_results():
+    """Get student's interview results"""
+    try:
+        current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        
+        if not user or user.role != 'student':
+            return jsonify({'error': 'Access denied'}), 403
+        
+        profile = user.student_profile
+        if not profile:
+            return jsonify({'error': 'Profile not found'}), 404
+        
+        # Get student's applications and their results
+        applications = StudentApplication.query.filter_by(student_id=profile.id).all()
+        results = []
+        
+        for app in applications:
+            round_results = RoundResult.query.filter_by(application_id=app.id).all()
+            for result in round_results:
+                result_data = result.to_dict()
+                result_data['application'] = app.to_dict()
+                results.append(result_data)
+        
+        return jsonify({
+            'results': results
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
